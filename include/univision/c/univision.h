@@ -109,6 +109,8 @@ UV_API uv_status_code uv_system_create(uv_system** out_system);
 UV_API void uv_system_destroy(uv_system* system);
 UV_API uv_status_code uv_system_register_simulator(
     uv_system* system, const uv_simulator_config* config);
+UV_API uv_status_code uv_system_register_gentl(
+    uv_system* system, const char* cti_path);
 UV_API uv_status_code uv_system_enumerate(uv_system* system, size_t* device_count);
 UV_API uv_status_code uv_system_get_device(
     const uv_system* system, size_t index, uv_device_info* info);

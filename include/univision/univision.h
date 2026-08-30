@@ -3,6 +3,7 @@
 #include "univision/adapter.h"
 #include "univision/camera.h"
 #include "univision/feature.h"
+#include "univision/gentl.h"
 #include "univision/simulator.h"
 #include "univision/status.h"
 #include "univision/stream.h"

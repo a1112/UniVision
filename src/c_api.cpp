@@ -1,5 +1,6 @@
 #include "univision/c/univision.h"
 
+#include "univision/gentl.h"
 #include "univision/simulator.h"
 #include "univision/system.h"
 #include "univision/version.h"
@@ -130,6 +131,22 @@ uv_status_code uv_system_register_simulator(
     }
     return code_of(system->implementation.register_adapter(
         univision::make_simulator_adapter(translated)));
+  });
+}
+
+uv_status_code uv_system_register_gentl(uv_system* system, const char* cti_path) {
+  return guarded([&] {
+    if (system == nullptr || cti_path == nullptr || cti_path[0] == '\0') {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "system and a non-empty cti_path are required");
+    }
+    univision::GenTLAdapterOptions options;
+    options.cti_path = cti_path;
+    auto adapter = univision::make_gentl_adapter(options);
+    if (!adapter) {
+      return code_of(adapter.status());
+    }
+    return code_of(system->implementation.register_adapter(std::move(adapter).value()));
   });
 }
 

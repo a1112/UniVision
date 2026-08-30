@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   UniVision
-  VERSION 0.1.0
+  VERSION 0.2.0
   DESCRIPTION "Cross-vendor industrial image acquisition runtime"
   LANGUAGES C CXX
 )
@@ -16,6 +16,7 @@ option(UNIVISION_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 add_library(univision_core
   src/c_api.cpp
+  src/gentl.cpp
   src/simulator.cpp
   src/status.cpp
   src/system.cpp
@@ -29,6 +30,7 @@ target_include_directories(univision_core
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_compile_definitions(univision_core PRIVATE UNIVISION_BUILDING_LIBRARY)
+target_link_libraries(univision_core PRIVATE ${CMAKE_DL_LIBS})
 
 if(BUILD_SHARED_LIBS)
   target_compile_definitions(univision_core PUBLIC UNIVISION_SHARED)
@@ -69,6 +71,30 @@ if(UNIVISION_BUILD_TESTS)
   target_link_libraries(univision_c_api_tests PRIVATE UniVision::Core)
   set_target_properties(univision_c_api_tests PROPERTIES LINKER_LANGUAGE CXX)
   add_test(NAME univision_c_api_tests COMMAND univision_c_api_tests)
+
+  add_library(univision_fake_cti SHARED tests/fake_gentl_producer.cpp)
+  target_compile_features(univision_fake_cti PRIVATE cxx_std_20)
+  target_include_directories(univision_fake_cti PRIVATE src/gentl)
+  set_target_properties(univision_fake_cti PROPERTIES
+    PREFIX ""
+    SUFFIX ".cti"
+    CXX_VISIBILITY_PRESET hidden
+  )
+
+  add_executable(univision_gentl_tests tests/gentl_tests.cpp)
+  target_link_libraries(univision_gentl_tests PRIVATE UniVision::Core)
+  add_dependencies(univision_gentl_tests univision_fake_cti)
+  add_test(NAME univision_gentl_tests
+    COMMAND univision_gentl_tests $<TARGET_FILE:univision_fake_cti>
+  )
+
+  add_executable(univision_gentl_c_api_tests tests/gentl_c_api_tests.c)
+  target_link_libraries(univision_gentl_c_api_tests PRIVATE UniVision::Core)
+  set_target_properties(univision_gentl_c_api_tests PROPERTIES LINKER_LANGUAGE CXX)
+  add_dependencies(univision_gentl_c_api_tests univision_fake_cti)
+  add_test(NAME univision_gentl_c_api_tests
+    COMMAND univision_gentl_c_api_tests $<TARGET_FILE:univision_fake_cti>
+  )
 endif()
 
 install(TARGETS univision_core
