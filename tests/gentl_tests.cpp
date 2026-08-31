@@ -70,9 +70,55 @@ int main(int argc, char** argv) {
   auto camera = camera_result.value();
   CHECK(camera->open());
   CHECK(camera->state() == univision::CameraState::open);
-  auto unavailable = camera->read_feature("ExposureTime");
-  CHECK(!unavailable);
-  CHECK(unavailable.status().code() == univision::ErrorCode::unsupported);
+  const auto features = camera->features();
+  CHECK(features.size() == 13);
+  auto exposure_info = camera->feature_info("ExposureTime");
+  CHECK(exposure_info);
+  CHECK(exposure_info.value().kind == univision::FeatureKind::floating_point);
+  CHECK(exposure_info.value().access == univision::AccessMode::read_write);
+  CHECK(exposure_info.value().unit == "us");
+  CHECK(exposure_info.value().minimum == 10.0);
+  CHECK(exposure_info.value().maximum == 100000.0);
+  CHECK(exposure_info.value().increment == 0.5);
+  CHECK(exposure_info.value().standard_feature);
+
+  auto exposure = camera->read_feature("ExposureTime");
+  CHECK(exposure);
+  CHECK(std::get<double>(exposure.value()) == 1000.0);
+  CHECK(camera->write_feature("ExposureTime", 2500.5));
+  CHECK(std::get<double>(camera->read_feature("ExposureTime").value()) == 2500.5);
+  CHECK(!camera->write_feature("ExposureTime", 2500.25));
+
+  CHECK(std::get<std::int64_t>(camera->read_feature("Width").value()) == 64);
+  CHECK(camera->write_feature("Width", std::int64_t{32}));
+  CHECK(!camera->write_feature("Width", std::int64_t{17}));
+  CHECK(camera->write_feature("Width", std::int64_t{64}));
+
+  auto trigger_info = camera->feature_info("TriggerMode");
+  CHECK(trigger_info);
+  CHECK(trigger_info.value().enum_entries == std::vector<std::string>({"Off", "On"}));
+  CHECK(std::get<std::string>(camera->read_feature("TriggerMode").value()) == "Off");
+  CHECK(camera->write_feature("TriggerMode", std::string{"On"}));
+  CHECK(!camera->write_feature("TriggerMode", std::string{"Invalid"}));
+
+  CHECK(!std::get<bool>(camera->read_feature("ReverseX").value()));
+  CHECK(camera->write_feature("ReverseX", true));
+  CHECK(std::get<bool>(camera->read_feature("ReverseX").value()));
+  CHECK(std::get<std::string>(camera->read_feature("DeviceUserID").value()) ==
+        "CI Camera");
+  CHECK(camera->write_feature("DeviceUserID", std::string{"Line A"}));
+  CHECK(std::get<std::string>(camera->read_feature("DeviceUserID").value()) ==
+        "Line A");
+  CHECK(std::get<double>(camera->read_feature("DeviceTemperature").value()) == 36.5);
+  CHECK(!camera->write_feature("DeviceTemperature", 20.0));
+  CHECK(camera->execute_command("TriggerSoftware"));
+  CHECK(!camera->read_feature("AcquisitionStart"));
+
+  auto vendor = camera->feature_info("VendorMagic");
+  CHECK(vendor);
+  CHECK(!vendor.value().standard_feature);
+  CHECK(std::get<std::int64_t>(camera->read_feature("VendorMagic").value()) == 42);
+  CHECK(!camera->feature_info("MissingFeature"));
 
   univision::StreamConfiguration stream_configuration;
   stream_configuration.buffer_count = 3;

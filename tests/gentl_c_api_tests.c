@@ -1,6 +1,7 @@
 #include "univision/c/univision.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #define REQUIRE(call)                                                          \
   do {                                                                         \
@@ -33,6 +34,79 @@ int main(int argc, char** argv) {
   uv_camera* camera = NULL;
   REQUIRE(uv_system_create_camera(system, info.stable_id, &camera));
   REQUIRE(uv_camera_open(camera));
+
+  size_t feature_count = 0;
+  REQUIRE(uv_camera_get_feature_count(camera, &feature_count));
+  if (feature_count != 13) {
+    return 1;
+  }
+  int found_exposure = 0;
+  for (size_t index = 0; index < feature_count; ++index) {
+    uv_feature_info feature = {0};
+    feature.struct_size = sizeof(feature);
+    REQUIRE(uv_camera_get_feature_info(camera, index, &feature));
+    if (strcmp(feature.name, "ExposureTime") == 0) {
+      if (feature.kind != UV_FEATURE_FLOAT || feature.access != UV_ACCESS_READ_WRITE ||
+          !feature.has_minimum || feature.minimum != 10.0 ||
+          strcmp(feature.unit, "us") != 0 || !feature.standard_feature) {
+        return 1;
+      }
+      found_exposure = 1;
+    }
+  }
+  if (!found_exposure) {
+    return 1;
+  }
+
+  int64_t width = 0;
+  REQUIRE(uv_camera_get_integer(camera, "Width", &width));
+  if (width != 64) {
+    return 1;
+  }
+  REQUIRE(uv_camera_set_integer(camera, "Width", 32));
+  REQUIRE(uv_camera_set_integer(camera, "Width", 64));
+
+  double exposure = 0.0;
+  REQUIRE(uv_camera_get_float(camera, "ExposureTime", &exposure));
+  REQUIRE(uv_camera_set_float(camera, "ExposureTime", 4000.5));
+  REQUIRE(uv_camera_get_float(camera, "ExposureTime", &exposure));
+  if (exposure != 4000.5) {
+    return 1;
+  }
+
+  int reverse_x = 0;
+  REQUIRE(uv_camera_get_bool(camera, "ReverseX", &reverse_x));
+  REQUIRE(uv_camera_set_bool(camera, "ReverseX", 1));
+  REQUIRE(uv_camera_get_bool(camera, "ReverseX", &reverse_x));
+  if (!reverse_x) {
+    return 1;
+  }
+
+  size_t text_size = 0;
+  REQUIRE(uv_camera_get_string(camera, "DeviceUserID", NULL, &text_size));
+  char text[32] = {0};
+  REQUIRE(uv_camera_get_string(camera, "DeviceUserID", text, &text_size));
+  if (strcmp(text, "CI Camera") != 0) {
+    return 1;
+  }
+  REQUIRE(uv_camera_set_string(camera, "DeviceUserID", "Line C"));
+  text_size = sizeof(text);
+  REQUIRE(uv_camera_get_string(camera, "DeviceUserID", text, &text_size));
+  if (strcmp(text, "Line C") != 0) {
+    return 1;
+  }
+
+  size_t entry_size = sizeof(text);
+  REQUIRE(uv_camera_get_enum_entry(camera, "TriggerMode", 1, text, &entry_size));
+  if (strcmp(text, "On") != 0) {
+    return 1;
+  }
+  REQUIRE(uv_camera_set_string(camera, "TriggerMode", "On"));
+  REQUIRE(uv_camera_execute_command(camera, "TriggerSoftware"));
+  if (uv_camera_set_float(camera, "DeviceTemperature", 20.0) !=
+      UV_STATUS_ACCESS_DENIED) {
+    return 1;
+  }
 
   uv_stream_config config = {0};
   config.struct_size = sizeof(config);

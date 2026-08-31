@@ -369,7 +369,7 @@ class SimulatorAdapter final : public Adapter {
   }
 
   SimulatorConfiguration configuration_;
-  AdapterDescriptor descriptor_{"simulator", "UniVision Simulator", "0.2.0",
+  AdapterDescriptor descriptor_{"simulator", "UniVision Simulator", "0.3.0",
                                 "UniVision", 100};
 };
 

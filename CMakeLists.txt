@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   UniVision
-  VERSION 0.2.0
+  VERSION 0.3.0
   DESCRIPTION "Cross-vendor industrial image acquisition runtime"
   LANGUAGES C CXX
 )
@@ -16,6 +16,7 @@ option(UNIVISION_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 add_library(univision_core
   src/c_api.cpp
+  src/genapi/genapi.cpp
   src/gentl.cpp
   src/simulator.cpp
   src/status.cpp
@@ -66,6 +67,11 @@ if(UNIVISION_BUILD_TESTS)
   add_executable(univision_core_tests tests/core_tests.cpp)
   target_link_libraries(univision_core_tests PRIVATE UniVision::Core)
   add_test(NAME univision_core_tests COMMAND univision_core_tests)
+
+  add_executable(univision_genapi_tests tests/genapi_tests.cpp)
+  target_link_libraries(univision_genapi_tests PRIVATE UniVision::Core)
+  target_include_directories(univision_genapi_tests PRIVATE src)
+  add_test(NAME univision_genapi_tests COMMAND univision_genapi_tests)
 
   add_executable(univision_c_api_tests tests/c_api_tests.c)
   target_link_libraries(univision_c_api_tests PRIVATE UniVision::Core)

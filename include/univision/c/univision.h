@@ -51,6 +51,22 @@ typedef enum uv_drop_policy {
   UV_DROP_LATEST_ONLY
 } uv_drop_policy;
 
+typedef enum uv_feature_kind {
+  UV_FEATURE_INTEGER = 0,
+  UV_FEATURE_FLOAT,
+  UV_FEATURE_BOOLEAN,
+  UV_FEATURE_ENUMERATION,
+  UV_FEATURE_STRING,
+  UV_FEATURE_COMMAND
+} uv_feature_kind;
+
+typedef enum uv_access_mode {
+  UV_ACCESS_UNAVAILABLE = 0,
+  UV_ACCESS_READ_ONLY,
+  UV_ACCESS_WRITE_ONLY,
+  UV_ACCESS_READ_WRITE
+} uv_access_mode;
+
 typedef struct uv_version {
   uint32_t struct_size;
   uint32_t abi_version;
@@ -90,6 +106,24 @@ typedef struct uv_stream_config {
   uint32_t frame_timeout_ms;
 } uv_stream_config;
 
+typedef struct uv_feature_info {
+  uint32_t struct_size;
+  char name[UV_TEXT_CAPACITY];
+  char display_name[UV_TEXT_CAPACITY];
+  char description[UV_TEXT_CAPACITY];
+  char unit[UV_TEXT_CAPACITY];
+  uint32_t kind;
+  uint32_t access;
+  int has_minimum;
+  int has_maximum;
+  int has_increment;
+  double minimum;
+  double maximum;
+  double increment;
+  size_t enum_entry_count;
+  int standard_feature;
+} uv_feature_info;
+
 typedef struct uv_frame_descriptor {
   uint32_t struct_size;
   uint32_t width;
@@ -121,10 +155,32 @@ UV_API void uv_camera_destroy(uv_camera* camera);
 UV_API uv_status_code uv_camera_open(uv_camera* camera);
 UV_API uv_status_code uv_camera_close(uv_camera* camera);
 UV_API uint32_t uv_camera_state(const uv_camera* camera);
+UV_API uv_status_code uv_camera_get_feature_count(
+    const uv_camera* camera, size_t* feature_count);
+UV_API uv_status_code uv_camera_get_feature_info(
+    const uv_camera* camera, size_t index, uv_feature_info* info);
+UV_API uv_status_code uv_camera_get_enum_entry(
+    const uv_camera* camera, const char* feature_name, size_t index,
+    char* value, size_t* value_size);
+UV_API uv_status_code uv_camera_get_integer(
+    const uv_camera* camera, const char* feature_name, int64_t* value);
+UV_API uv_status_code uv_camera_set_integer(
+    uv_camera* camera, const char* feature_name, int64_t value);
 UV_API uv_status_code uv_camera_get_float(
     const uv_camera* camera, const char* feature_name, double* value);
 UV_API uv_status_code uv_camera_set_float(
     uv_camera* camera, const char* feature_name, double value);
+UV_API uv_status_code uv_camera_get_bool(
+    const uv_camera* camera, const char* feature_name, int* value);
+UV_API uv_status_code uv_camera_set_bool(
+    uv_camera* camera, const char* feature_name, int value);
+UV_API uv_status_code uv_camera_get_string(
+    const uv_camera* camera, const char* feature_name,
+    char* value, size_t* value_size);
+UV_API uv_status_code uv_camera_set_string(
+    uv_camera* camera, const char* feature_name, const char* value);
+UV_API uv_status_code uv_camera_execute_command(
+    uv_camera* camera, const char* feature_name);
 
 UV_API uv_status_code uv_camera_create_stream(
     uv_camera* camera, const uv_stream_config* config, uv_stream** out_stream);

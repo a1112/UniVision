@@ -1,20 +1,24 @@
 #include "univision/gentl.h"
 
+#include "genapi/genapi.h"
 #include "gentl/gentl_abi.h"
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -402,6 +406,53 @@ struct DeviceRoute {
   std::string device_id;
 };
 
+struct PortUrlLocation {
+  std::uint64_t address{};
+  std::size_t length{};
+};
+
+Result<PortUrlLocation> parse_local_port_url(const std::string& url) {
+  constexpr std::string_view prefix = "Local:";
+  if (!url.starts_with(prefix)) {
+    return Status{ErrorCode::unsupported,
+                  "GenApi Port URL is not an uncompressed Local URL: " + url};
+  }
+  const auto first = url.find(';', prefix.size());
+  const auto second = first == std::string::npos ? std::string::npos
+                                                  : url.find(';', first + 1);
+  if (first == std::string::npos || second == std::string::npos) {
+    return Status{ErrorCode::invalid_argument, "invalid GenApi Local Port URL: " + url};
+  }
+  const auto parse_number = [&](std::string_view value) -> std::optional<std::uint64_t> {
+    int base = 10;
+    if (value.size() > 2 && value[0] == '0' &&
+        (value[1] == 'x' || value[1] == 'X')) {
+      value.remove_prefix(2);
+      base = 16;
+    }
+    std::uint64_t result{};
+    const auto parsed =
+        std::from_chars(value.data(), value.data() + value.size(), result, base);
+    if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+      return std::nullopt;
+    }
+    return result;
+  };
+  const auto address = parse_number(std::string_view(url).substr(first + 1,
+                                                                second - first - 1));
+  auto length_text = std::string_view(url).substr(second + 1);
+  if (const auto query = length_text.find('?'); query != std::string_view::npos) {
+    length_text = length_text.substr(0, query);
+  }
+  const auto length = parse_number(length_text);
+  if (!address || !length || *length == 0 ||
+      *length > static_cast<std::uint64_t>(64U * 1024U * 1024U) ||
+      *length > std::numeric_limits<std::size_t>::max()) {
+    return Status{ErrorCode::invalid_argument, "invalid GenApi Local Port range: " + url};
+  }
+  return PortUrlLocation{*address, static_cast<std::size_t>(*length)};
+}
+
 class DeviceSession {
  public:
   ~DeviceSession() {
@@ -417,10 +468,84 @@ class DeviceSession {
   ga::IFHandle interface{};
   ga::DevHandle device{};
   ga::PortHandle remote_port{};
+  std::shared_ptr<genapi::NodeMap> node_map;
+  Status node_map_status{ErrorCode::unsupported,
+                         "GenTL device did not expose a GenApi NodeMap"};
   std::string interface_id;
   std::string device_id;
   std::shared_ptr<std::atomic<CameraState>> camera_state;
+  std::shared_ptr<std::mutex> port_mutex{std::make_shared<std::mutex>()};
 };
+
+Result<std::shared_ptr<genapi::NodeMap>> load_node_map(
+    const std::shared_ptr<DeviceSession>& session) {
+  auto& producer = *session->producer;
+  auto url = producer.query_string(
+      [&](ga::InfoDataType* type, void* buffer, std::size_t* size) {
+        if (type != nullptr) {
+          *type = ga::info_string;
+        }
+        return producer.api_.gc_get_port_url(session->remote_port,
+                                             static_cast<char*>(buffer), size);
+      },
+      "GCGetPortURL");
+  if (!url) {
+    return url.status();
+  }
+  auto location = parse_local_port_url(url.value());
+  if (!location) {
+    return location.status();
+  }
+  std::string xml(location.value().length, '\0');
+  std::size_t size = xml.size();
+  auto error = producer.api_.gc_read_port(session->remote_port, location.value().address,
+                                          xml.data(), &size);
+  if (error != ga::success) {
+    return producer.status(error, "GCReadPort(GenApi XML)");
+  }
+  if (size != xml.size()) {
+    return Status{ErrorCode::adapter_failure,
+                  "GCReadPort returned a partial GenApi XML document"};
+  }
+  if (const auto terminator = xml.find('\0'); terminator != std::string::npos) {
+    xml.resize(terminator);
+  }
+  auto producer_reference = session->producer;
+  const auto port = session->remote_port;
+  auto port_mutex = session->port_mutex;
+  return genapi::NodeMap::parse(
+      std::move(xml),
+      [producer_reference, port, port_mutex](std::uint64_t address, void* output,
+                                             std::size_t requested) {
+        std::lock_guard lock(*port_mutex);
+        std::size_t transferred = requested;
+        const auto result = producer_reference->api_.gc_read_port(
+            port, address, output, &transferred);
+        if (result != ga::success) {
+          return producer_reference->status(result, "GCReadPort(Feature)");
+        }
+        if (transferred != requested) {
+          return Status{ErrorCode::adapter_failure,
+                        "GCReadPort returned a partial Feature register"};
+        }
+        return Status::success();
+      },
+      [producer_reference, port, port_mutex](std::uint64_t address, const void* input,
+                                             std::size_t requested) {
+        std::lock_guard lock(*port_mutex);
+        std::size_t transferred = requested;
+        const auto result = producer_reference->api_.gc_write_port(
+            port, address, input, &transferred);
+        if (result != ga::success) {
+          return producer_reference->status(result, "GCWritePort(Feature)");
+        }
+        if (transferred != requested) {
+          return Status{ErrorCode::adapter_failure,
+                        "GCWritePort returned a partial Feature register"};
+        }
+        return Status::success();
+      });
+}
 
 class GenTLDataStreamState : public std::enable_shared_from_this<GenTLDataStreamState> {
  public:
@@ -522,6 +647,18 @@ class GenTLDataStreamState : public std::enable_shared_from_this<GenTLDataStream
             api.ds_flush_queue(stream_, ga::acquisition_queue_all_discard));
         return session_->producer->status(error, "DSStartAcquisition");
       }
+      if (session_->node_map != nullptr &&
+          session_->node_map->contains("AcquisitionStart")) {
+        auto command = session_->node_map->execute("AcquisitionStart");
+        if (!command) {
+          static_cast<void>(
+              api.ds_stop_acquisition(stream_, ga::acquisition_stop_default));
+          cleanup_event();
+          static_cast<void>(
+              api.ds_flush_queue(stream_, ga::acquisition_queue_all_discard));
+          return command;
+        }
+      }
       running_.store(true);
     }
     session_->camera_state->store(CameraState::streaming);
@@ -537,6 +674,13 @@ class GenTLDataStreamState : public std::enable_shared_from_this<GenTLDataStream
 
     auto& api = session_->producer->api_;
     Status result = Status::success();
+    if (session_->node_map != nullptr &&
+        session_->node_map->contains("AcquisitionStop")) {
+      auto command = session_->node_map->execute("AcquisitionStop");
+      if (!command) {
+        result = command;
+      }
+    }
     const auto stop_error = api.ds_stop_acquisition(stream_, ga::acquisition_stop_default);
     if (stop_error != ga::success && stop_error != ga::resource_in_use) {
       result = session_->producer->status(stop_error, "DSStopAcquisition");
@@ -812,6 +956,20 @@ class GenTLCamera final : public Camera {
       state_->store(CameraState::failed);
       return producer_->status(error, "DevGetPort");
     }
+    if (error == ga::success && session->remote_port != nullptr) {
+      auto node_map = load_node_map(session);
+      if (node_map) {
+        session->node_map = std::move(node_map).value();
+        session->node_map_status = Status::success();
+      } else {
+        session->node_map_status = node_map.status();
+        if (node_map.status().code() != ErrorCode::unsupported &&
+            node_map.status().code() != ErrorCode::not_found) {
+          state_->store(CameraState::failed);
+          return node_map.status();
+        }
+      }
+    }
     session_ = std::move(session);
     state_->store(CameraState::open);
     return Status::success();
@@ -846,18 +1004,43 @@ class GenTLCamera final : public Camera {
     return open();
   }
 
-  [[nodiscard]] std::vector<FeatureInfo> features() const override { return {}; }
+  [[nodiscard]] std::vector<FeatureInfo> features() const override {
+    std::lock_guard lock(mutex_);
+    return session_ == nullptr || session_->node_map == nullptr
+               ? std::vector<FeatureInfo>{}
+               : session_->node_map->features();
+  }
 
-  [[nodiscard]] Result<FeatureInfo> feature_info(const std::string&) const override {
-    return feature_unavailable();
+  [[nodiscard]] Result<FeatureInfo> feature_info(
+      const std::string& name) const override {
+    std::lock_guard lock(mutex_);
+    if (session_ == nullptr || session_->node_map == nullptr) {
+      return feature_unavailable();
+    }
+    return session_->node_map->feature_info(name);
   }
-  [[nodiscard]] Result<FeatureValue> read_feature(const std::string&) const override {
-    return feature_unavailable();
+  [[nodiscard]] Result<FeatureValue> read_feature(
+      const std::string& name) const override {
+    std::lock_guard lock(mutex_);
+    if (session_ == nullptr || session_->node_map == nullptr) {
+      return feature_unavailable();
+    }
+    return session_->node_map->read(name);
   }
-  Status write_feature(const std::string&, const FeatureValue&) override {
-    return feature_unavailable();
+  Status write_feature(const std::string& name, const FeatureValue& value) override {
+    std::lock_guard lock(mutex_);
+    if (session_ == nullptr || session_->node_map == nullptr) {
+      return feature_unavailable();
+    }
+    return session_->node_map->write(name, value);
   }
-  Status execute_command(const std::string&) override { return feature_unavailable(); }
+  Status execute_command(const std::string& name) override {
+    std::lock_guard lock(mutex_);
+    if (session_ == nullptr || session_->node_map == nullptr) {
+      return feature_unavailable();
+    }
+    return session_->node_map->execute(name);
+  }
 
   [[nodiscard]] Result<std::unique_ptr<Stream>> create_stream(
       const StreamConfiguration& configuration) override {
@@ -875,9 +1058,12 @@ class GenTLCamera final : public Camera {
   }
 
  private:
-  [[nodiscard]] static Status feature_unavailable() {
-    return {ErrorCode::unsupported,
-            "GenApi NodeMap support is not enabled in this GenTL milestone"};
+  [[nodiscard]] Status feature_unavailable() const {
+    if (session_ == nullptr) {
+      return {ErrorCode::invalid_state,
+              "camera must be open before accessing GenApi features"};
+    }
+    return session_->node_map_status;
   }
 
   DeviceInfo info_;

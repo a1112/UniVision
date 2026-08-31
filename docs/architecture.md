@@ -51,10 +51,18 @@ Adapter 应尽可能给出跨枚举稳定的 `stable_id`。真实相机建议由
 3. Control access 打开设备及第一个 DataStream；
 4. Payload 查询、外部 Buffer announce、queue 和 New Buffer event；
 5. Frame 释放时自动 requeue，停止时 flush/revoke，最后按 `DS → Device → Interface → TL` 逆序关闭。
+6. 从 Remote Device Port 的 `Local:` URL 读取 XML，映射基础 GenApi NodeMap；
+7. 启动时先启动 DataStream 再执行 `AcquisitionStart`，停止时反向执行。
 
 Frame 直接引用已 announce 的 Buffer，没有图像 `memcpy`。Frame 的共享 owner 是一张 Buffer lease；上层持有 Frame 时该 Buffer 不会被重新排队。若上层长期持有超过 Buffer pool 容量的 Frame，Producer underrun 会进入 `frames_dropped` 统计。
 
-当前没有解析 Remote Device Port 的 GenApi XML，因此 Feature API 会明确返回 `unsupported`。这也意味着真实相机的 `AcquisitionStart/Stop` 仍需下一子阶段通过 NodeMap 执行；Fake CTI 只用于验证 transport ABI 与生命周期。
+NodeMap 当前支持 `Integer/IntReg`、`Float/FloatReg`、`Boolean`、`Enumeration/EnumEntry`、
+`String/StringReg` 与 `Command`，包括大小端寄存器、范围、步进、单位、枚举项和访问权限。
+标准节点通过 SFNC 名称或 XML `NameSpace="Standard"` 标记，厂商节点仍以原始名称暴露。
+
+首个实现刻意只接受未压缩 `Local:` XML。ZIP/HTTP URL、MaskedIntReg、
+SwissKnife/Converter、`pIsAvailable`/`pIsWritable` 等表达式尚未实现；遇到这些能力时返回
+明确的 `unsupported` 或解析错误，不静默猜测节点语义。
 
 ## 线程与错误模型
 

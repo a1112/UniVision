@@ -1,6 +1,8 @@
 #include "gentl_abi.h"
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -9,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #if defined(_WIN32)
@@ -23,8 +26,106 @@ namespace {
 
 constexpr std::size_t image_width = 64;
 constexpr std::size_t image_height = 32;
-constexpr std::size_t payload_size = image_width * image_height;
 constexpr std::uint64_t pfnc_mono8 = 0x01080001ULL;
+constexpr std::uint64_t xml_address = 0x1000;
+constexpr std::size_t register_space_size = 0x100;
+
+constexpr std::uint64_t width_address = 0x00;
+constexpr std::uint64_t height_address = 0x04;
+constexpr std::uint64_t exposure_address = 0x08;
+constexpr std::uint64_t gain_address = 0x10;
+constexpr std::uint64_t trigger_mode_address = 0x18;
+constexpr std::uint64_t reverse_x_address = 0x1c;
+constexpr std::uint64_t user_id_address = 0x20;
+constexpr std::uint64_t acquisition_start_address = 0x40;
+constexpr std::uint64_t acquisition_stop_address = 0x44;
+constexpr std::uint64_t trigger_software_address = 0x48;
+constexpr std::uint64_t pixel_format_address = 0x50;
+constexpr std::uint64_t temperature_address = 0x58;
+
+const std::string genapi_xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
+<RegisterDescription ModelName="Fake GigE Camera" VendorName="UniVision">
+  <Integer Name="Width" NameSpace="Standard">
+    <DisplayName>Width</DisplayName><ToolTip>Image width</ToolTip><Unit>px</Unit>
+    <pValue>WidthReg</pValue><Min>16</Min><Max>64</Max><Inc>16</Inc>
+  </Integer>
+  <IntReg Name="WidthReg"><Address>0x00</Address><Length>4</Length>
+    <AccessMode>RW</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Integer Name="Height" NameSpace="Standard">
+    <DisplayName>Height</DisplayName><Unit>px</Unit>
+    <pValue>HeightReg</pValue><Min>16</Min><Max>32</Max><Inc>16</Inc>
+  </Integer>
+  <IntReg Name="HeightReg"><Address>0x04</Address><Length>4</Length>
+    <AccessMode>RW</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Float Name="ExposureTime" NameSpace="Standard">
+    <DisplayName>Exposure Time</DisplayName><ToolTip>Sensor exposure</ToolTip><Unit>us</Unit>
+    <pValue>ExposureTimeReg</pValue><Min>10</Min><Max>100000</Max><Inc>0.5</Inc>
+  </Float>
+  <FloatReg Name="ExposureTimeReg"><Address>0x08</Address><Length>8</Length>
+    <AccessMode>RW</AccessMode><Endianess>BigEndian</Endianess>
+  </FloatReg>
+  <Float Name="Gain" NameSpace="Standard">
+    <Unit>dB</Unit><pValue>GainReg</pValue><Min>0</Min><Max>24</Max><Inc>0.1</Inc>
+  </Float>
+  <FloatReg Name="GainReg"><Address>0x10</Address><Length>8</Length>
+    <AccessMode>RW</AccessMode><Endianess>BigEndian</Endianess>
+  </FloatReg>
+  <Enumeration Name="TriggerMode" NameSpace="Standard">
+    <pValue>TriggerModeReg</pValue>
+    <pEnumEntry>TriggerMode_Off</pEnumEntry><pEnumEntry>TriggerMode_On</pEnumEntry>
+  </Enumeration>
+  <EnumEntry Name="TriggerMode_Off"><Value>0</Value><Symbolic>Off</Symbolic></EnumEntry>
+  <EnumEntry Name="TriggerMode_On"><Value>1</Value><Symbolic>On</Symbolic></EnumEntry>
+  <IntReg Name="TriggerModeReg"><Address>0x18</Address><Length>4</Length>
+    <AccessMode>RW</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Boolean Name="ReverseX" NameSpace="Standard">
+    <pValue>ReverseXReg</pValue><OnValue>1</OnValue><OffValue>0</OffValue>
+  </Boolean>
+  <IntReg Name="ReverseXReg"><Address>0x1c</Address><Length>4</Length>
+    <AccessMode>RW</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <String Name="DeviceUserID" NameSpace="Standard"><pValue>DeviceUserIDReg</pValue></String>
+  <StringReg Name="DeviceUserIDReg"><Address>0x20</Address><Length>32</Length>
+    <AccessMode>RW</AccessMode>
+  </StringReg>
+  <Command Name="AcquisitionStart" NameSpace="Standard">
+    <pValue>AcquisitionStartReg</pValue><CommandValue>1</CommandValue>
+  </Command>
+  <IntReg Name="AcquisitionStartReg"><Address>0x40</Address><Length>4</Length>
+    <AccessMode>WO</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Command Name="AcquisitionStop" NameSpace="Standard">
+    <pValue>AcquisitionStopReg</pValue><CommandValue>1</CommandValue>
+  </Command>
+  <IntReg Name="AcquisitionStopReg"><Address>0x44</Address><Length>4</Length>
+    <AccessMode>WO</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Command Name="TriggerSoftware" NameSpace="Standard">
+    <pValue>TriggerSoftwareReg</pValue><CommandValue>1</CommandValue>
+  </Command>
+  <IntReg Name="TriggerSoftwareReg"><Address>0x48</Address><Length>4</Length>
+    <AccessMode>WO</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Enumeration Name="PixelFormat" NameSpace="Standard">
+    <pValue>PixelFormatReg</pValue><pEnumEntry>PixelFormat_Mono8</pEnumEntry>
+  </Enumeration>
+  <EnumEntry Name="PixelFormat_Mono8"><Value>17301505</Value><Symbolic>Mono8</Symbolic></EnumEntry>
+  <IntReg Name="PixelFormatReg"><Address>0x50</Address><Length>8</Length>
+    <AccessMode>RO</AccessMode><Sign>Unsigned</Sign><Endianess>BigEndian</Endianess>
+  </IntReg>
+  <Float Name="DeviceTemperature" NameSpace="Standard">
+    <Unit>C</Unit><pValue>DeviceTemperatureReg</pValue>
+  </Float>
+  <FloatReg Name="DeviceTemperatureReg"><Address>0x58</Address><Length>8</Length>
+    <AccessMode>RO</AccessMode><Endianess>BigEndian</Endianess>
+  </FloatReg>
+  <Integer Name="VendorMagic" NameSpace="Custom">
+    <DisplayName>Vendor Magic</DisplayName><AccessMode>RO</AccessMode><Value>42</Value>
+  </Integer>
+</RegisterDescription>)xml";
 
 int tl_token;
 int interface_token;
@@ -48,11 +149,13 @@ struct FakeState {
   std::mutex mutex;
   bool initialized{};
   bool running{};
+  bool remote_acquiring{};
   bool event_registered{};
   bool event_killed{};
   std::uint64_t next_frame{};
   std::vector<std::unique_ptr<FakeBuffer>> buffers;
   std::deque<FakeBuffer*> queue;
+  std::array<std::byte, register_space_size> registers{};
 };
 
 FakeState state;
@@ -112,6 +215,51 @@ FakeBuffer* find_buffer(ga::BufferHandle handle) {
   return found == state.buffers.end() ? nullptr : found->get();
 }
 
+void set_register_uint(std::uint64_t address, std::size_t length, std::uint64_t value) {
+  for (std::size_t index = 0; index < length; ++index) {
+    state.registers[static_cast<std::size_t>(address) + length - index - 1] =
+        static_cast<std::byte>(value & 0xffU);
+    value >>= 8U;
+  }
+}
+
+std::uint64_t register_uint(std::uint64_t address, std::size_t length) {
+  std::uint64_t value{};
+  for (std::size_t index = 0; index < length; ++index) {
+    value = (value << 8U) |
+            std::to_integer<unsigned char>(
+                state.registers[static_cast<std::size_t>(address) + index]);
+  }
+  return value;
+}
+
+void set_register_double(std::uint64_t address, double value) {
+  set_register_uint(address, sizeof(value), std::bit_cast<std::uint64_t>(value));
+}
+
+void initialize_registers() {
+  state.registers.fill(std::byte{});
+  set_register_uint(width_address, 4, image_width);
+  set_register_uint(height_address, 4, image_height);
+  set_register_double(exposure_address, 1000.0);
+  set_register_double(gain_address, 0.0);
+  set_register_uint(trigger_mode_address, 4, 0);
+  set_register_uint(reverse_x_address, 4, 0);
+  constexpr std::string_view user_id = "CI Camera";
+  std::copy(user_id.begin(), user_id.end(),
+            reinterpret_cast<char*>(state.registers.data() + user_id_address));
+  set_register_uint(pixel_format_address, 8, pfnc_mono8);
+  set_register_double(temperature_address, 36.5);
+}
+
+std::size_t current_width() {
+  return static_cast<std::size_t>(register_uint(width_address, 4));
+}
+
+std::size_t current_height() {
+  return static_cast<std::size_t>(register_uint(height_address, 4));
+}
+
 }  // namespace
 
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCGetInfo(
@@ -150,6 +298,8 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCGetLastError(
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCInitLib() {
   std::lock_guard lock(state.mutex);
   state.initialized = true;
+  state.remote_acquiring = false;
+  initialize_registers();
   return ga::success;
 }
 
@@ -157,6 +307,7 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCCloseLib() {
   std::lock_guard lock(state.mutex);
   state.initialized = false;
   state.running = false;
+  state.remote_acquiring = false;
   state.event_registered = false;
   state.event_killed = false;
   state.next_frame = 0;
@@ -166,18 +317,54 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCCloseLib() {
 }
 
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCReadPort(
-    ga::PortHandle, std::uint64_t, void*, std::size_t*) {
-  return fail(ga::not_implemented, "fake register port is not implemented");
+    ga::PortHandle handle, std::uint64_t address, void* output, std::size_t* size) {
+  if (!is_handle(handle, &port_token) || output == nullptr || size == nullptr) {
+    return fail(ga::invalid_parameter, "invalid fake port read");
+  }
+  std::lock_guard lock(state.mutex);
+  if (address >= xml_address && address - xml_address <= genapi_xml.size() &&
+      *size <= genapi_xml.size() - static_cast<std::size_t>(address - xml_address)) {
+    std::memcpy(output, genapi_xml.data() + (address - xml_address), *size);
+    return ga::success;
+  }
+  if (address <= state.registers.size() &&
+      *size <= state.registers.size() - static_cast<std::size_t>(address)) {
+    std::memcpy(output, state.registers.data() + address, *size);
+    return ga::success;
+  }
+  return fail(ga::invalid_parameter, "fake port read is outside mapped memory");
 }
 
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCWritePort(
-    ga::PortHandle, std::uint64_t, const void*, std::size_t*) {
-  return fail(ga::not_implemented, "fake register port is not implemented");
+    ga::PortHandle handle, std::uint64_t address, const void* input,
+    std::size_t* size) {
+  if (!is_handle(handle, &port_token) || input == nullptr || size == nullptr) {
+    return fail(ga::invalid_parameter, "invalid fake port write");
+  }
+  std::lock_guard lock(state.mutex);
+  if (address > state.registers.size() ||
+      *size > state.registers.size() - static_cast<std::size_t>(address)) {
+    return fail(ga::invalid_parameter, "fake port write is outside mapped memory");
+  }
+  std::memcpy(state.registers.data() + address, input, *size);
+  if (address == acquisition_start_address && *size == 4 &&
+      register_uint(address, 4) == 1) {
+    state.remote_acquiring = true;
+  } else if (address == acquisition_stop_address && *size == 4 &&
+             register_uint(address, 4) == 1) {
+    state.remote_acquiring = false;
+  }
+  return ga::success;
 }
 
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCGetPortURL(
-    ga::PortHandle, char*, std::size_t*) {
-  return fail(ga::not_available, "fake device has no GenApi XML");
+    ga::PortHandle handle, char* output, std::size_t* size) {
+  if (!is_handle(handle, &port_token)) {
+    return fail(ga::invalid_handle, "invalid fake port handle");
+  }
+  return write_string("Local:univision_fake.xml;0x1000;" +
+                          std::to_string(genapi_xml.size()),
+                      nullptr, output, size);
 }
 
 UV_FAKE_EXPORT ga::Error UV_GENTL_CALL GCRegisterEvent(
@@ -213,7 +400,7 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL EventGetData(
   if (state.event_killed) {
     return fail(ga::abort, "event was killed");
   }
-  if (!state.running || !state.event_registered) {
+  if (!state.running || !state.remote_acquiring || !state.event_registered) {
     return fail(ga::resource_in_use, "acquisition is not running");
   }
   if (state.queue.empty()) {
@@ -224,7 +411,7 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL EventGetData(
   state.queue.pop_front();
   buffer->queued = false;
   buffer->frame_id = ++state.next_frame;
-  buffer->filled = std::min(buffer->size, payload_size);
+  buffer->filled = std::min(buffer->size, current_width() * current_height());
   auto* bytes = static_cast<std::byte*>(buffer->memory);
   for (std::size_t index = 0; index < buffer->filled; ++index) {
     bytes[index] = static_cast<std::byte>((index + buffer->frame_id) & 0xffU);
@@ -467,8 +654,10 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL DSGetInfo(
   }
   std::lock_guard lock(state.mutex);
   switch (command) {
-    case ga::stream_info_payload_size:
-      return write_value(payload_size, ga::info_size, type, output, size);
+    case ga::stream_info_payload_size: {
+      const auto payload = current_width() * current_height();
+      return write_value(payload, ga::info_size, type, output, size);
+    }
     case ga::stream_info_min_buffers: {
       const std::size_t minimum = 3;
       return write_value(minimum, ga::info_size, type, output, size);
@@ -551,11 +740,15 @@ UV_FAKE_EXPORT ga::Error UV_GENTL_CALL DSGetBufferInfo(
     }
     case ga::buffer_info_size_filled:
       return write_value(buffer->filled, ga::info_size, type, output, size);
-    case ga::buffer_info_width:
-      return write_value(image_width, ga::info_size, type, output, size);
+    case ga::buffer_info_width: {
+      const auto width = current_width();
+      return write_value(width, ga::info_size, type, output, size);
+    }
     case ga::buffer_info_height:
-    case ga::buffer_info_delivered_height:
-      return write_value(image_height, ga::info_size, type, output, size);
+    case ga::buffer_info_delivered_height: {
+      const auto height = current_height();
+      return write_value(height, ga::info_size, type, output, size);
+    }
     case ga::buffer_info_xpadding: {
       const std::size_t padding = 0;
       return write_value(padding, ga::info_size, type, output, size);

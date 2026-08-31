@@ -47,12 +47,31 @@ int main(void) {
   uv_camera* camera = NULL;
   REQUIRE(uv_system_create_camera(system, info.stable_id, &camera));
   REQUIRE(uv_camera_open(camera));
+  size_t feature_count = 0;
+  REQUIRE(uv_camera_get_feature_count(camera, &feature_count));
+  if (feature_count < 8) {
+    return 1;
+  }
+  int64_t width = 0;
+  REQUIRE(uv_camera_get_integer(camera, "Width", &width));
+  if (width != 32) {
+    return 1;
+  }
   REQUIRE(uv_camera_set_float(camera, "ExposureTime", 5000.0));
   double exposure = 0.0;
   REQUIRE(uv_camera_get_float(camera, "ExposureTime", &exposure));
   if (exposure != 5000.0) {
     return 1;
   }
+  size_t pixel_format_size = 0;
+  REQUIRE(uv_camera_get_string(camera, "PixelFormat", NULL, &pixel_format_size));
+  char pixel_format[16] = {0};
+  REQUIRE(uv_camera_get_string(camera, "PixelFormat", pixel_format,
+                               &pixel_format_size));
+  if (strcmp(pixel_format, "Mono8") != 0) {
+    return 1;
+  }
+  REQUIRE(uv_camera_execute_command(camera, "TriggerSoftware"));
 
   uv_stream* stream = NULL;
   REQUIRE(uv_camera_create_stream(camera, NULL, &stream));
