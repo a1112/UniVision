@@ -12,6 +12,7 @@ include(CMakePackageConfigHelpers)
 
 option(UNIVISION_BUILD_TESTS "Build UniVision tests" ${PROJECT_IS_TOP_LEVEL})
 option(UNIVISION_BUILD_EXAMPLES "Build UniVision examples" ${PROJECT_IS_TOP_LEVEL})
+option(UNIVISION_BUILD_GUI "Build the Qt Quick camera debugger (requires Qt 6.5+)" OFF)
 option(UNIVISION_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 add_library(univision_core
@@ -57,6 +58,10 @@ set_target_properties(univision_core PROPERTIES
 if(UNIVISION_BUILD_EXAMPLES)
   add_executable(univision_list_devices examples/list_devices.cpp)
   target_link_libraries(univision_list_devices PRIVATE UniVision::Core)
+endif()
+
+if(UNIVISION_BUILD_GUI)
+  add_subdirectory(apps/camera_debugger)
 endif()
 
 if(UNIVISION_BUILD_TESTS)

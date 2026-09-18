@@ -68,3 +68,7 @@ auto frame = stream->wait_next(std::chrono::seconds(1)).value();
 ## 项目状态
 
 该仓库仍处在基础设施阶段。下一里程碑是 Generic GenTL Adapter，并在 Windows 11 x64 与 Ubuntu x64 上接入真实 `.cti` Producer 完成枚举、Feature 与连续采集闭环。
+
+## Qt Quick 相机调试界面
+
+可选的 C++ / QML 桌面工作台已经接入 Simulator 采集链路，支持实时预览、参数读写、图像保存、直方图和显示 ROI。启用 `UNIVISION_BUILD_GUI=ON` 构建；完整启动和验证步骤见 [相机调试界面](docs/camera-debugger.md)。需要 Qt 6.5+，核心库本身仍无 Qt 依赖。
