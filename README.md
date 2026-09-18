@@ -2,7 +2,7 @@
 
 UniVision 是面向工业相机的跨厂商图像采集运行时。项目目标不是简单统一函数名，而是建立可认证、可诊断、可扩展的设备发现、特性访问、流采集、帧生命周期和异常恢复基础设施。
 
-当前版本为 **0.1 基础框架**，已包含：
+当前版本为 **0.3 GenApi Feature Milestone**，已包含：
 
 - C++20 Core 与可安装的 CMake package；
 - `System → Adapter → Camera → Stream → Frame` 分层接口；
@@ -10,10 +10,19 @@ UniVision 是面向工业相机的跨厂商图像采集运行时。项目目标�
 - 稳定设备身份、Adapter 优先级和重复设备去重；
 - 显式 Buffer ownership、Memory Type、时间戳、元数据和流统计；
 - 带边界检查的 Simulator Adapter，可在无硬件环境完成端到端采集；
-- 版本化 C ABI，覆盖枚举、开关相机、浮点 Feature、流与帧生命周期；
+- 显式 `.cti` 路径加载、Producer/Interface/Device 枚举与错误归一化；
+- GenTL DataStream announce/queue/event/revoke 生命周期和零额外拷贝 Frame；
+- Remote Device Port 的本地 XML 加载，以及 `Int/Float/Enum/Bool/String/Command`
+  NodeMap 映射；
+- SFNC 标准节点标记、原始节点名访问、范围/步进/单位/枚举项/访问权限；
+- DataStream 与远端 `AcquisitionStart/Stop` 命令的正确启停顺序；
+- Fake CTI Producer，持续验证 Windows/Linux 动态加载与采集 ABI；
+- 版本化 C ABI，覆盖 Feature 枚举与六类值访问、流与帧生命周期；
 - 无第三方测试依赖的 C++/C 测试，以及 Windows/Linux CI。
 
-> 当前尚未接入真实 GenTL Producer、pylon、MVS 或 Spinnaker。Simulator 用于验证核心语义，不代表硬件适配已经完成。
+> 当前 NodeMap 是可测试的 GenApi 基础子集，支持未压缩 `Local:` XML 和直接
+> Register/Value 节点。ZIP XML、SwissKnife/Converter、动态可用性表达式和真实厂商
+> 兼容认证仍属于后续工作，因此当前 Generic GenTL 路径仍标记为 best-effort。
 
 ## 快速开始
 
@@ -53,6 +62,24 @@ stream->start();
 auto frame = stream->wait_next(std::chrono::seconds(1)).value();
 ```
 
+## 加载 GenTL Producer
+
+UniVision 不读取全局 `GENICAM_GENTL*_PATH`，必须显式指定 `.cti`，从而避免多个厂商 Producer 与依赖 DLL/SO 冲突：
+
+```cpp
+univision::GenTLAdapterOptions options;
+options.cti_path = R"(C:\Program Files\Vendor\Runtime\producer.cti)";
+
+auto adapter = univision::make_gentl_adapter(options);
+if (!adapter) {
+  throw std::runtime_error(adapter.status().message());
+}
+system.register_adapter(std::move(adapter).value());
+```
+
+纯 C 调用可使用 `uv_system_register_gentl(system, cti_path)`，并通过
+`uv_camera_get_feature_info`、类型化 get/set 与 `uv_camera_execute_command` 访问节点。
+
 完整示例见 `examples/list_devices.cpp`，纯 C 调用路径见 `tests/c_api_tests.c`。
 
 ## 架构原则
@@ -67,7 +94,9 @@ auto frame = stream->wait_next(std::chrono::seconds(1)).value();
 
 ## 项目状态
 
-该仓库仍处在基础设施阶段。下一里程碑是 Generic GenTL Adapter，并在 Windows 11 x64 与 Ubuntu x64 上接入真实 `.cti` Producer 完成枚举、Feature 与连续采集闭环。
+该仓库仍处在基础设施阶段。下一里程碑是扩展 GenApi 兼容面（ZIP XML、引用范围、
+Converter/SwissKnife 与动态可用性），补齐 ROI/Trigger 的规范化便捷 API，并使用真实
+厂商 `.cti` 在 Windows 11 x64 与 Ubuntu x64 做硬件在环验证。
 
 ## Qt Quick 相机调试界面
 

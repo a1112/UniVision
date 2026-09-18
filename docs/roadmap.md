@@ -1,6 +1,6 @@
 # 实施路线
 
-## M0：Core Foundation（当前）
+## M0：Core Foundation
 
 - [x] CMake/C++20 项目与安装导出
 - [x] Status/Result、Device、Feature、Stream、Frame 数据模型
@@ -11,12 +11,18 @@
 
 ## M1：Generic GenTL
 
-- [ ] 显式 `.cti` 路径加载，不依赖全局 `GENICAM_GENTL64_PATH`
-- [ ] System/Interface/Device/DataStream 枚举与生命周期
-- [ ] GenApi NodeMap 到 `FeatureInfo`/`FeatureValue` 映射
-- [ ] 外部 Buffer pool、announce/queue/revoke 与零额外拷贝
-- [ ] Chunk Data、事件、incomplete buffer 和统计映射
-- [ ] Producer 指纹、依赖诊断和重复设备识别
+- [x] 显式 `.cti` 路径加载，不依赖全局 `GENICAM_GENTL64_PATH`
+- [x] System/Interface/Device/DataStream 枚举与生命周期
+- [x] GenApi XML 与基础 NodeMap 到 `FeatureInfo`/`FeatureValue` 映射
+- [x] `Int/Float/Enum/Bool/String/Command`、范围、单位和访问权限
+- [x] 远端 `AcquisitionStart/Stop` 与 DataStream 启停顺序
+- [ ] ZIP XML、Converter/SwissKnife 和动态可用性表达式
+- [ ] ROI/Trigger 规范化便捷 API
+- [x] 外部 Buffer pool、announce/queue/revoke 与零额外拷贝
+- [ ] Chunk Data、设备事件和 GenDC multipart
+- [x] New Buffer event、incomplete buffer 和 underrun 统计映射
+- [x] Producer 指纹和重复设备识别
+- [ ] Producer 依赖诊断与真实硬件兼容矩阵
 
 验收：使用至少两家 `.cti` Producer，在 Windows 11 x64 与 Ubuntu x64 完成连续采集、Feature、ROI、触发和断线错误闭环。
 

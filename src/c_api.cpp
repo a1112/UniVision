@@ -1,5 +1,6 @@
 #include "univision/c/univision.h"
 
+#include "univision/gentl.h"
 #include "univision/simulator.h"
 #include "univision/system.h"
 #include "univision/version.h"
@@ -68,6 +69,25 @@ bool valid_struct(const void* structure, std::uint32_t actual, std::size_t expec
   return structure != nullptr && actual >= expected;
 }
 
+uv_status_code copy_sized_text(const std::string& source, char* destination,
+                               std::size_t* destination_size) {
+  if (destination_size == nullptr) {
+    return failure(UV_STATUS_INVALID_ARGUMENT, "text size output must not be null");
+  }
+  const auto required = source.size() + 1;
+  if (destination == nullptr) {
+    *destination_size = required;
+    return UV_STATUS_OK;
+  }
+  if (*destination_size < required) {
+    *destination_size = required;
+    return failure(UV_STATUS_INVALID_ARGUMENT, "text output buffer is too small");
+  }
+  std::memcpy(destination, source.c_str(), required);
+  *destination_size = required;
+  return UV_STATUS_OK;
+}
+
 }  // namespace
 
 extern "C" {
@@ -130,6 +150,22 @@ uv_status_code uv_system_register_simulator(
     }
     return code_of(system->implementation.register_adapter(
         univision::make_simulator_adapter(translated)));
+  });
+}
+
+uv_status_code uv_system_register_gentl(uv_system* system, const char* cti_path) {
+  return guarded([&] {
+    if (system == nullptr || cti_path == nullptr || cti_path[0] == '\0') {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "system and a non-empty cti_path are required");
+    }
+    univision::GenTLAdapterOptions options;
+    options.cti_path = cti_path;
+    auto adapter = univision::make_gentl_adapter(options);
+    if (!adapter) {
+      return code_of(adapter.status());
+    }
+    return code_of(system->implementation.register_adapter(std::move(adapter).value()));
   });
 }
 
@@ -221,6 +257,103 @@ uint32_t uv_camera_state(const uv_camera* camera) {
   return static_cast<uint32_t>(camera->implementation->state());
 }
 
+uv_status_code uv_camera_get_feature_count(
+    const uv_camera* camera, size_t* feature_count) {
+  return guarded([&] {
+    if (camera == nullptr || feature_count == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_count must not be null");
+    }
+    *feature_count = camera->implementation->features().size();
+    return UV_STATUS_OK;
+  });
+}
+
+uv_status_code uv_camera_get_feature_info(
+    const uv_camera* camera, size_t index, uv_feature_info* info) {
+  return guarded([&] {
+    if (camera == nullptr ||
+        !valid_struct(info, info == nullptr ? 0U : info->struct_size,
+                      sizeof(uv_feature_info))) {
+      return failure(UV_STATUS_INVALID_ARGUMENT, "invalid feature output structure");
+    }
+    const auto features = camera->implementation->features();
+    if (index >= features.size()) {
+      return failure(UV_STATUS_NOT_FOUND, "feature index is out of range");
+    }
+    const auto& source = features[index];
+    copy_text(info->name, source.name);
+    copy_text(info->display_name, source.display_name);
+    copy_text(info->description, source.description);
+    copy_text(info->unit, source.unit);
+    info->kind = static_cast<uint32_t>(source.kind);
+    info->access = static_cast<uint32_t>(source.access);
+    info->has_minimum = source.minimum.has_value();
+    info->has_maximum = source.maximum.has_value();
+    info->has_increment = source.increment.has_value();
+    info->minimum = source.minimum.value_or(0.0);
+    info->maximum = source.maximum.value_or(0.0);
+    info->increment = source.increment.value_or(0.0);
+    info->enum_entry_count = source.enum_entries.size();
+    info->standard_feature = source.standard_feature;
+    return UV_STATUS_OK;
+  });
+}
+
+uv_status_code uv_camera_get_enum_entry(
+    const uv_camera* camera, const char* feature_name, size_t index,
+    char* value, size_t* value_size) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_name must not be null");
+    }
+    auto result = camera->implementation->feature_info(feature_name);
+    if (!result) {
+      return code_of(result.status());
+    }
+    if (result.value().kind != univision::FeatureKind::enumeration) {
+      return failure(UV_STATUS_INVALID_ARGUMENT, "feature is not an enumeration");
+    }
+    if (index >= result.value().enum_entries.size()) {
+      return failure(UV_STATUS_NOT_FOUND, "enumeration entry index is out of range");
+    }
+    return copy_sized_text(result.value().enum_entries[index], value, value_size);
+  });
+}
+
+uv_status_code uv_camera_get_integer(
+    const uv_camera* camera, const char* feature_name, int64_t* value) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr || value == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera, feature_name, and value must not be null");
+    }
+    auto result = camera->implementation->read_feature(feature_name);
+    if (!result) {
+      return code_of(result.status());
+    }
+    const auto* integer = std::get_if<std::int64_t>(&result.value());
+    if (integer == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT, "feature is not integer");
+    }
+    *value = *integer;
+    return UV_STATUS_OK;
+  });
+}
+
+uv_status_code uv_camera_set_integer(
+    uv_camera* camera, const char* feature_name, int64_t value) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_name must not be null");
+    }
+    return code_of(camera->implementation->write_feature(
+        feature_name, static_cast<std::int64_t>(value)));
+  });
+}
+
 uv_status_code uv_camera_get_float(
     const uv_camera* camera, const char* feature_name, double* value) {
   return guarded([&] {
@@ -249,6 +382,81 @@ uv_status_code uv_camera_set_float(
                      "camera and feature_name must not be null");
     }
     return code_of(camera->implementation->write_feature(feature_name, value));
+  });
+}
+
+uv_status_code uv_camera_get_bool(
+    const uv_camera* camera, const char* feature_name, int* value) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr || value == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera, feature_name, and value must not be null");
+    }
+    auto result = camera->implementation->read_feature(feature_name);
+    if (!result) {
+      return code_of(result.status());
+    }
+    const auto* boolean = std::get_if<bool>(&result.value());
+    if (boolean == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT, "feature is not boolean");
+    }
+    *value = *boolean;
+    return UV_STATUS_OK;
+  });
+}
+
+uv_status_code uv_camera_set_bool(
+    uv_camera* camera, const char* feature_name, int value) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_name must not be null");
+    }
+    return code_of(camera->implementation->write_feature(feature_name, value != 0));
+  });
+}
+
+uv_status_code uv_camera_get_string(
+    const uv_camera* camera, const char* feature_name,
+    char* value, size_t* value_size) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_name must not be null");
+    }
+    auto result = camera->implementation->read_feature(feature_name);
+    if (!result) {
+      return code_of(result.status());
+    }
+    const auto* string = std::get_if<std::string>(&result.value());
+    if (string == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "feature is not string or enumeration");
+    }
+    return copy_sized_text(*string, value, value_size);
+  });
+}
+
+uv_status_code uv_camera_set_string(
+    uv_camera* camera, const char* feature_name, const char* value) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr || value == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera, feature_name, and value must not be null");
+    }
+    return code_of(camera->implementation->write_feature(
+        feature_name, std::string{value}));
+  });
+}
+
+uv_status_code uv_camera_execute_command(
+    uv_camera* camera, const char* feature_name) {
+  return guarded([&] {
+    if (camera == nullptr || feature_name == nullptr) {
+      return failure(UV_STATUS_INVALID_ARGUMENT,
+                     "camera and feature_name must not be null");
+    }
+    return code_of(camera->implementation->execute_command(feature_name));
   });
 }
 
