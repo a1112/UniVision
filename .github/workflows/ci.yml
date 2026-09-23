@@ -36,3 +36,47 @@ jobs:
 
       - name: Install package
         run: cmake --install build --config ${{ matrix.build_type }} --prefix build/install
+
+  industrial-suite:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure optional industrial modules
+        run: >-
+          cmake -S . -B build/industrial
+          -DCMAKE_BUILD_TYPE=Debug
+          -DUNIVISION_BUILD_TESTS=ON
+          -DUNIVISION_WARNINGS_AS_ERRORS=ON
+          -DUNIVISION_ENABLE_CONTRACTS=ON
+          -DUNIVISION_ENABLE_STREAM=ON
+          -DUNIVISION_ENABLE_RECORDING=ON
+          -DUNIVISION_ENABLE_REPLAY=ON
+          -DUNIVISION_ENABLE_MEASURE=ON
+          -DUNIVISION_ENABLE_FLOW=ON
+          -DUNIVISION_BUILD_UV_CLI=ON
+
+      - name: Build optional industrial modules
+        run: cmake --build build/industrial --config Debug --parallel 2
+
+      - name: Test optional industrial modules
+        run: ctest --test-dir build/industrial -C Debug --output-on-failure
+
+      - name: Install optional industrial modules
+        run: cmake --install build/industrial --config Debug --prefix build/industrial/install
+
+      - name: Configure installed package consumer
+        run: >-
+          cmake -S tests/industrial-suite/package-consumer -B build/consumer
+          -DCMAKE_PREFIX_PATH=${{ github.workspace }}/build/industrial/install
+
+      - name: Build installed package consumer
+        run: cmake --build build/consumer --config Debug --parallel
+
+      - name: Test installed package consumer
+        run: ctest --test-dir build/consumer -C Debug --output-on-failure

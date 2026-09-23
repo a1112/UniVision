@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:measurement-result:0.1",
+  "title": "measurement-result (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "result_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "measurand": {
+      "const": "section-circle-fit-diameter"
+    },
+    "method_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "calibration_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "coordinate_frame": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "unit": {
+      "enum": [
+        "mm",
+        "m"
+      ]
+    },
+    "validity": {
+      "enum": [
+        "valid",
+        "invalid",
+        "synthetic",
+        "uncertainty-not-evaluated"
+      ]
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "point_count": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 2147483647
+        },
+        "angular_coverage_deg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "residual_rms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "converged": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "point_count",
+        "angular_coverage_deg",
+        "residual_rms",
+        "converged"
+      ],
+      "additionalProperties": false
+    },
+    "uncertainty": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "standard": {
+              "type": "number",
+              "minimum": 0
+            },
+            "expanded": {
+              "type": "number",
+              "minimum": 0
+            },
+            "coverage_factor": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "enum": [
+                "mm",
+                "m"
+              ]
+            },
+            "budget_ref": {
+              "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+            }
+          },
+          "required": [
+            "standard",
+            "expanded",
+            "coverage_factor",
+            "unit",
+            "budget_ref"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "fail",
+        "indeterminate",
+        "not-evaluated"
+      ]
+    },
+    "decision_rule_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "input_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+      },
+      "minItems": 1,
+      "maxItems": 4096
+    }
+  },
+  "required": [
+    "schema_version",
+    "result_id",
+    "run_id",
+    "measurand",
+    "method_version",
+    "calibration_id",
+    "coordinate_frame",
+    "value",
+    "unit",
+    "validity",
+    "diagnostics",
+    "uncertainty",
+    "decision",
+    "decision_rule_version",
+    "input_refs"
+  ],
+  "additionalProperties": false
+}

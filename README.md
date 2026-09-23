@@ -98,6 +98,20 @@ system.register_adapter(std::move(adapter).value());
 Converter/SwissKnife 与动态可用性），补齐 ROI/Trigger 的规范化便捷 API，并使用真实
 厂商 `.cti` 在 Windows 11 x64 与 Ubuntu x64 做硬件在环验证。
 
+## 可选工业视觉扩展
+
+`cmake --preset industrial && cmake --build --preset industrial && ctest --preset industrial`
+会构建共享契约、UniStream 本机有界交付、MCAP 录制、VisionReplay、
+UniMeasure、InspectFlow 和无界面的合成演示 CLI。Windows 下可运行
+`build\industrial\univision_uv_cli.exe demo build\demo-01`，输出录制会话和
+合成测量运行制品。各扩展选项默认关闭；启用录制时才获取锁定版本的 MCAP
+与 nlohmann/json 源码。
+已有工作区可用 `univision_uv_cli run-synthetic-flow <workspace> <flow-definition.json> <run-id>`
+读取保存的离线图并运行合成截面；该命令显式将输入标为 synthetic，不输出生产判定。
+
+设计包与逐模块已实现/待验证边界见
+[工业视觉扩展状态](docs/design/industrial-suite/status.md)。
+
 ## Qt Quick 相机调试界面
 
 可选的 C++ / QML 桌面工作台已经接入 Simulator 采集链路，支持实时预览、参数读写、图像保存、直方图和显示 ROI。启用 `UNIVISION_BUILD_GUI=ON` 构建；完整启动和验证步骤见 [相机调试界面](docs/camera-debugger.md)。需要 Qt 6.5+，核心库本身仍无 Qt 依赖。

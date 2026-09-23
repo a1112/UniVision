@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:frame-envelope:0.1",
+  "title": "frame-envelope (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "stream_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "sequence": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "source_kind": {
+      "enum": [
+        "synthetic",
+        "file",
+        "camera"
+      ]
+    },
+    "frame_kind": {
+      "enum": [
+        "intensity",
+        "depth_raw",
+        "depth_metric"
+      ]
+    },
+    "unit": {
+      "enum": [
+        "unitless",
+        "raw-device-code",
+        "mm",
+        "m"
+      ]
+    },
+    "validity": {
+      "enum": [
+        "complete",
+        "invalid",
+        "synthetic"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "pixel_format": {
+          "enum": [
+            "Mono8",
+            "Mono16",
+            "Depth16",
+            "Depth32F"
+          ]
+        },
+        "endianness": {
+          "enum": [
+            "little",
+            "big",
+            "not-applicable"
+          ]
+        },
+        "planes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "enum": [
+                  "intensity",
+                  "depth",
+                  "confidence",
+                  "mask"
+                ]
+              },
+              "offset": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              },
+              "row_stride": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              },
+              "byte_length": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              }
+            },
+            "required": [
+              "role",
+              "offset",
+              "row_stride",
+              "byte_length"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 4096
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "pixel_format",
+        "endianness",
+        "planes"
+      ],
+      "additionalProperties": false
+    },
+    "capture_time": {
+      "type": "object",
+      "properties": {
+        "clock_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "capture_ticks": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "tick_frequency_hz": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "capture_utc_ns": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mapping_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quality": {
+          "enum": [
+            "unmapped",
+            "synthetic",
+            "mapped-verified"
+          ]
+        }
+      },
+      "required": [
+        "clock_id",
+        "capture_ticks",
+        "tick_frequency_hz",
+        "capture_utc_ns",
+        "mapping_id",
+        "quality"
+      ],
+      "additionalProperties": false
+    },
+    "encoding": {
+      "enum": [
+        "none",
+        "zstd",
+        "jpeg"
+      ]
+    },
+    "decoded_bytes": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "payload": {
+      "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+    },
+    "calibration_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "parent_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 0,
+      "maxItems": 4096
+    },
+    "line_range": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "first_line_index": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "line_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          "required": [
+            "first_line_index",
+            "line_count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "stream_id",
+    "device_id",
+    "sequence",
+    "source_kind",
+    "frame_kind",
+    "unit",
+    "validity",
+    "layout",
+    "capture_time",
+    "encoding",
+    "decoded_bytes",
+    "payload",
+    "calibration_id",
+    "parent_ids",
+    "line_range"
+  ],
+  "additionalProperties": false
+}

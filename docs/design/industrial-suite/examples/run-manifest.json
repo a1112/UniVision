@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.1.0-draft",
+  "run_id": "run-synthetic-001",
+  "mode": "synthetic-contract-example",
+  "status": "succeeded",
+  "flow_ref": {
+    "schema_version": "0.1.0-draft",
+    "artifact_id": "flow-definition",
+    "path": "flow-definition.json",
+    "bytes": "1325",
+    "sha256": "0f6ce57fedf80553d1bb63c222e54949aec0080153bbd7e9d923debf5155ae5e",
+    "media_type": "application/json",
+    "provenance": "synthetic"
+  },
+  "inputs": [
+    {
+      "schema_version": "0.1.0-draft",
+      "artifact_id": "synthetic-circle-profile",
+      "path": "data/profile-circle.csv",
+      "bytes": "2395",
+      "sha256": "e95b272bac0d16bcd8085ec2e210123fbd68c1936b15e8885502b3ee27144420",
+      "media_type": "text/csv",
+      "provenance": "synthetic"
+    }
+  ],
+  "outputs": [
+    {
+      "schema_version": "0.1.0-draft",
+      "artifact_id": "measurement-result",
+      "path": "measurement-result.json",
+      "bytes": "914",
+      "sha256": "2713e76259fb392d442c19a991576ae4a3fa0a0b816de6bb89ee8157fea73506",
+      "media_type": "application/json",
+      "provenance": "synthetic"
+    }
+  ],
+  "environment": {
+    "execution_kind": "design-validation-only",
+    "implementation_commit": null,
+    "notes": "Hand-authored contract example. No UniVision runtime, camera, network throughput, or physical metrology was exercised."
+  },
+  "production_acceptance": false
+}

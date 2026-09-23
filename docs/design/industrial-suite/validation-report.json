@@ -1,0 +1,134 @@
+{
+  "scope": "design examples only; no UniVision runtime or hardware executed",
+  "schema_count": 8,
+  "positive_examples": [
+    {
+      "schema": "artifact-ref",
+      "status": "passed"
+    },
+    {
+      "schema": "frame-envelope",
+      "status": "passed"
+    },
+    {
+      "schema": "recording-manifest",
+      "status": "passed"
+    },
+    {
+      "schema": "calibration-profile",
+      "status": "passed"
+    },
+    {
+      "schema": "measurement-result",
+      "status": "passed"
+    },
+    {
+      "schema": "flow-definition",
+      "status": "passed"
+    },
+    {
+      "schema": "run-manifest",
+      "status": "passed"
+    },
+    {
+      "schema": "stream-receipt",
+      "status": "passed"
+    }
+  ],
+  "negative_cases": [
+    {
+      "test": "numeric-sequence-rejected",
+      "status": "rejected-as-expected",
+      "reason": "1 is not of type 'string'"
+    },
+    {
+      "test": "uint64-overflow-rejected",
+      "status": "rejected-as-expected",
+      "reason": "uint64 must be a bounded decimal string: sequence"
+    },
+    {
+      "test": "unknown-schema-version",
+      "status": "rejected-as-expected",
+      "reason": "'0.1.0-draft' was expected"
+    },
+    {
+      "test": "invalid-row-stride",
+      "status": "rejected-as-expected",
+      "reason": "Invalid plane offset or stride"
+    },
+    {
+      "test": "raw-depth-cannot-be-mm",
+      "status": "rejected-as-expected",
+      "reason": "Raw depth cannot claim metric units"
+    },
+    {
+      "test": "jpeg-depth-rejected",
+      "status": "rejected-as-expected",
+      "reason": "JPEG is not an approved depth representation"
+    },
+    {
+      "test": "bad-digest-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Artifact digest mismatch"
+    },
+    {
+      "test": "path-traversal-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Path traversal"
+    },
+    {
+      "test": "synthetic-approval-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Approval requires non-synthetic supporting evidence"
+    },
+    {
+      "test": "synthetic-pass-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Unverified or synthetic result cannot claim physical pass/fail"
+    },
+    {
+      "test": "duplicate-node-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Duplicate node ID"
+    },
+    {
+      "test": "real-device-node-rejected",
+      "status": "rejected-as-expected",
+      "reason": "Unknown or unapproved offline node/version"
+    },
+    {
+      "test": "port-type-mismatch",
+      "status": "rejected-as-expected",
+      "reason": "Port type mismatch"
+    },
+    {
+      "test": "cyclic-or-invalid-back-edge",
+      "status": "rejected-as-expected",
+      "reason": "Port type mismatch"
+    },
+    {
+      "test": "durable-without-record",
+      "status": "rejected-as-expected",
+      "reason": "Durable receipt needs a commit record"
+    },
+    {
+      "test": "success-without-output",
+      "status": "rejected-as-expected",
+      "reason": "Successful run must reference committed outputs"
+    }
+  ],
+  "geometry": {
+    "test": "synthetic_algebraic_geometry_consistency",
+    "points": 72,
+    "diameter_mm": 19.99999999999971,
+    "absolute_error_mm": 2.913225216616411e-13,
+    "tolerance_mm": 1e-08,
+    "status": "passed",
+    "physical_accuracy_verified": false,
+    "scope": "Checks fixture and a small algebraic probe only, not the proposed production geometric fitter."
+  },
+  "live_repo_head_verified": false,
+  "network_tested": false,
+  "camera_tested": false,
+  "production_acceptance": false
+}

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:flow-definition:0.1",
+  "title": "flow-definition (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "flow_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "execution_mode": {
+      "const": "offline"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,40}$"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "parameters": {
+            "type": "object",
+            "maxProperties": 16
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "version",
+          "parameters"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 4096
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "from_port": {
+            "const": "out"
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "to_port": {
+            "const": "in"
+          }
+        },
+        "required": [
+          "from",
+          "from_port",
+          "to",
+          "to_port"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 4096
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_owned_bytes": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "max_inflight_items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "max_owned_bytes",
+        "max_inflight_items",
+        "timeout_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "required_sinks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 1,
+      "maxItems": 4096
+    }
+  },
+  "required": [
+    "schema_version",
+    "flow_id",
+    "revision",
+    "execution_mode",
+    "nodes",
+    "edges",
+    "limits",
+    "required_sinks"
+  ],
+  "additionalProperties": false
+}

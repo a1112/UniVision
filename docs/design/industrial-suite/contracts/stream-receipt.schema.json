@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:stream-receipt:0.1",
+  "title": "stream-receipt (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "consumer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "stream_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "sequence": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "payload_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "level": {
+      "enum": [
+        "received",
+        "durable",
+        "processed"
+      ]
+    },
+    "commit_record": {
+      "anyOf": [
+        {
+          "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "processing_run_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    }
+  },
+  "required": [
+    "schema_version",
+    "consumer_id",
+    "session_id",
+    "stream_id",
+    "sequence",
+    "payload_sha256",
+    "level",
+    "commit_record",
+    "processing_run_id",
+    "notes"
+  ],
+  "additionalProperties": false
+}

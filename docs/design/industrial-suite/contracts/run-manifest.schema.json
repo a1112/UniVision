@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:run-manifest:0.1",
+  "title": "run-manifest (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "mode": {
+      "const": "synthetic-contract-example"
+    },
+    "status": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "partial",
+        "cancelled"
+      ]
+    },
+    "flow_ref": {
+      "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+      },
+      "minItems": 1,
+      "maxItems": 4096
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+      },
+      "minItems": 0,
+      "maxItems": 4096
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "execution_kind": {
+          "const": "design-validation-only"
+        },
+        "implementation_commit": {
+          "type": "null"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "execution_kind",
+        "implementation_commit",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "production_acceptance": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "mode",
+    "status",
+    "flow_ref",
+    "inputs",
+    "outputs",
+    "environment",
+    "production_acceptance"
+  ],
+  "additionalProperties": false
+}

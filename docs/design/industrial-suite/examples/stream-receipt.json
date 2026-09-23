@@ -1,0 +1,12 @@
+{
+  "schema_version": "0.1.0-draft",
+  "consumer_id": "synthetic-consumer-01",
+  "session_id": "session-synthetic-001",
+  "stream_id": "stream-01",
+  "sequence": "1",
+  "payload_sha256": "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+  "level": "received",
+  "commit_record": null,
+  "processing_run_id": null,
+  "notes": "Illustrative receipt only; no network delivery performed."
+}

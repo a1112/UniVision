@@ -1,0 +1,68 @@
+{
+  "schema_version": "0.1.0-draft",
+  "flow_id": "flow-synthetic-diameter",
+  "revision": "1",
+  "execution_mode": "offline",
+  "nodes": [
+    {
+      "id": "source",
+      "type": "source.profile_file",
+      "version": "0.1.0",
+      "parameters": {
+        "artifact_path": "data/profile-circle.csv"
+      }
+    },
+    {
+      "id": "fit",
+      "type": "measure.circle_fit",
+      "version": "0.1.0",
+      "parameters": {
+        "calibration_id": "calibration-synthetic-identity-v1"
+      }
+    },
+    {
+      "id": "judge",
+      "type": "judge.verification",
+      "version": "0.1.0",
+      "parameters": {
+        "error_limit_mm": 0.03
+      }
+    },
+    {
+      "id": "archive",
+      "type": "sink.result_archive",
+      "version": "0.1.0",
+      "parameters": {
+        "output_namespace": "synthetic-results"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "source",
+      "from_port": "out",
+      "to": "fit",
+      "to_port": "in"
+    },
+    {
+      "from": "fit",
+      "from_port": "out",
+      "to": "judge",
+      "to_port": "in"
+    },
+    {
+      "from": "judge",
+      "from_port": "out",
+      "to": "archive",
+      "to_port": "in"
+    }
+  ],
+  "limits": {
+    "max_owned_bytes": "67108864",
+    "max_inflight_items": 4,
+    "timeout_seconds": 30
+  },
+  "required_sinks": [
+    "archive"
+  ]
+}

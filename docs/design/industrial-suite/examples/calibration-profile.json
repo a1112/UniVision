@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1.0-draft",
+  "calibration_id": "calibration-synthetic-identity-v1",
+  "revision": "1",
+  "status": "draft",
+  "provenance": "synthetic",
+  "device_id": "synthetic-profile-generator",
+  "coordinate_frame": "profile-xz-mm",
+  "input_unit": "mm",
+  "output_unit": "mm",
+  "scale": 1.0,
+  "offset_x": 0.0,
+  "offset_z": 0.0,
+  "validity_conditions": [
+    "Synthetic geometry only; not traceable physical calibration."
+  ],
+  "evidence_refs": [],
+  "approval_record": null
+}

@@ -28,11 +28,32 @@
         "UNIVISION_BUILD_TESTS": "ON",
         "UNIVISION_BUILD_EXAMPLES": "ON"
       }
+    },
+    {
+      "name": "industrial",
+      "displayName": "Industrial suite developer build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/industrial",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "UNIVISION_BUILD_TESTS": "ON",
+        "UNIVISION_BUILD_EXAMPLES": "ON",
+        "UNIVISION_ENABLE_CONTRACTS": "ON",
+        "UNIVISION_WARNINGS_AS_ERRORS": "ON",
+        "UNIVISION_ENABLE_STREAM": "ON",
+        "UNIVISION_ENABLE_RECORDING": "ON",
+        "UNIVISION_ENABLE_REPLAY": "ON",
+        "UNIVISION_ENABLE_MEASURE": "ON",
+        "UNIVISION_ENABLE_FLOW": "ON",
+        "UNIVISION_BUILD_UV_CLI": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "dev", "configurePreset": "dev" },
-    { "name": "release", "configurePreset": "release" }
+    { "name": "release", "configurePreset": "release" },
+    { "name": "industrial", "configurePreset": "industrial" }
   ],
   "testPresets": [
     {
@@ -43,6 +64,11 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "industrial",
+      "configurePreset": "industrial",
       "output": { "outputOnFailure": true }
     }
   ]

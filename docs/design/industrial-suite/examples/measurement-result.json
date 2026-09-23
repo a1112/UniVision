@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0-draft",
+  "result_id": "result-synthetic-001",
+  "run_id": "run-synthetic-001",
+  "measurand": "section-circle-fit-diameter",
+  "method_version": "fixture-algebraic-probe-0.1",
+  "calibration_id": "calibration-synthetic-identity-v1",
+  "coordinate_frame": "profile-xz-mm",
+  "value": 20.0,
+  "unit": "mm",
+  "validity": "synthetic",
+  "diagnostics": {
+    "point_count": 72,
+    "angular_coverage_deg": 360.0,
+    "residual_rms": 0.0,
+    "converged": true
+  },
+  "uncertainty": null,
+  "decision": "not-evaluated",
+  "decision_rule_version": null,
+  "input_refs": [
+    {
+      "schema_version": "0.1.0-draft",
+      "artifact_id": "synthetic-circle-profile",
+      "path": "data/profile-circle.csv",
+      "bytes": "2395",
+      "sha256": "e95b272bac0d16bcd8085ec2e210123fbd68c1936b15e8885502b3ee27144420",
+      "media_type": "text/csv",
+      "provenance": "synthetic"
+    }
+  ]
+}

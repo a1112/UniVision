@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:univision:industrial-suite:calibration-profile:0.1",
+  "title": "calibration-profile (design draft, not a production certification)",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0-draft"
+    },
+    "calibration_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "reviewed",
+        "approved",
+        "superseded",
+        "revoked"
+      ]
+    },
+    "provenance": {
+      "enum": [
+        "synthetic",
+        "reference-data"
+      ]
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "coordinate_frame": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "input_unit": {
+      "enum": [
+        "raw-device-code",
+        "mm",
+        "m"
+      ]
+    },
+    "output_unit": {
+      "enum": [
+        "mm",
+        "m"
+      ]
+    },
+    "scale": {
+      "type": "number",
+      "minimum": 0
+    },
+    "offset_x": {
+      "type": "number"
+    },
+    "offset_z": {
+      "type": "number"
+    },
+    "validity_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 1,
+      "maxItems": 4096
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:univision:industrial-suite:artifact-ref:0.1"
+      },
+      "minItems": 0,
+      "maxItems": 4096
+    },
+    "approval_record": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "calibration_id",
+    "revision",
+    "status",
+    "provenance",
+    "device_id",
+    "coordinate_frame",
+    "input_unit",
+    "output_unit",
+    "scale",
+    "offset_x",
+    "offset_z",
+    "validity_conditions",
+    "evidence_refs",
+    "approval_record"
+  ],
+  "additionalProperties": false
+}

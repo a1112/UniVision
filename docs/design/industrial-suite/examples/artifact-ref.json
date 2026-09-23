@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.1.0-draft",
+  "artifact_id": "frame-payload",
+  "path": "data/frame-mono8.raw",
+  "bytes": "64",
+  "sha256": "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+  "media_type": "application/octet-stream",
+  "provenance": "synthetic"
+}

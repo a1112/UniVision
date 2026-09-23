@@ -1,0 +1,50 @@
+{
+  "schema_version": "0.1.0-draft",
+  "session_id": "session-synthetic-001",
+  "stream_id": "stream-01",
+  "device_id": "synthetic-camera-01",
+  "sequence": "1",
+  "source_kind": "synthetic",
+  "frame_kind": "intensity",
+  "unit": "unitless",
+  "validity": "synthetic",
+  "layout": {
+    "width": 8,
+    "height": 8,
+    "pixel_format": "Mono8",
+    "endianness": "not-applicable",
+    "planes": [
+      {
+        "role": "intensity",
+        "offset": "0",
+        "row_stride": 8,
+        "byte_length": "64"
+      }
+    ]
+  },
+  "capture_time": {
+    "clock_id": "synthetic-monotonic",
+    "capture_ticks": "1000000",
+    "tick_frequency_hz": "1000000",
+    "capture_utc_ns": null,
+    "mapping_id": null,
+    "quality": "synthetic"
+  },
+  "encoding": "none",
+  "decoded_bytes": "64",
+  "payload": {
+    "schema_version": "0.1.0-draft",
+    "artifact_id": "frame-payload",
+    "path": "data/frame-mono8.raw",
+    "bytes": "64",
+    "sha256": "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+    "media_type": "application/octet-stream",
+    "provenance": "synthetic"
+  },
+  "calibration_id": null,
+  "parent_ids": [],
+  "line_range": {
+    "first_line_index": "0",
+    "line_count": 8
+  }
+}
