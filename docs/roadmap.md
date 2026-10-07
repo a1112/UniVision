@@ -18,6 +18,8 @@
 - [x] 远端 `AcquisitionStart/Stop` 与 DataStream 启停顺序
 - [ ] ZIP XML、Converter/SwissKnife 和动态可用性表达式
 - [ ] ROI/Trigger 规范化便捷 API
+  - [x] Simulator ROI 标准节点、传感器边界校验、启动快照与 C/C++ 离线回归
+  - [ ] 跨 Adapter 的类型化 ROI/Trigger 便捷 API 与真实设备验证
 - [x] 外部 Buffer pool、announce/queue/revoke 与零额外拷贝
 - [ ] Chunk Data、设备事件和 GenDC multipart
 - [x] New Buffer event、incomplete buffer 和 underrun 统计映射
