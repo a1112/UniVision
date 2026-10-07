@@ -42,7 +42,7 @@ bool is_roi_feature(const std::string& name) {
 }
 
 Status validate_configuration(const SimulatorConfiguration& configuration) {
-  if (configuration.width < 16 || configuration.width > sensor_extent ||
+  if (configuration.width == 0 || configuration.width > sensor_extent ||
       configuration.height == 0 || configuration.height > sensor_extent) {
     return {ErrorCode::invalid_argument, "simulator image dimensions exceed sensor bounds"};
   }
@@ -193,13 +193,13 @@ class SimulatorCamera final : public Camera {
     state_->height = configuration.height;
     state_->frame_rate = configuration.frame_rate;
     add_feature({"Width", "Width", "Image width", "px", FeatureKind::integer,
-                 AccessMode::read_write, 16.0, 16384.0, 1.0, {}, true},
+                 AccessMode::read_write, 1.0, 16384.0, 1.0, {}, true},
                 static_cast<std::int64_t>(configuration.width));
     add_feature({"Height", "Height", "Image height", "px", FeatureKind::integer,
                  AccessMode::read_write, 1.0, 16384.0, 1.0, {}, true},
                 static_cast<std::int64_t>(configuration.height));
     add_feature({"OffsetX", "Offset X", "Horizontal sensor ROI offset", "px",
-                 FeatureKind::integer, AccessMode::read_write, 0.0, 16368.0, 1.0,
+                 FeatureKind::integer, AccessMode::read_write, 0.0, 16383.0, 1.0,
                  {}, true}, std::int64_t{0});
     add_feature({"OffsetY", "Offset Y", "Vertical sensor ROI offset", "px",
                  FeatureKind::integer, AccessMode::read_write, 0.0, 16383.0, 1.0,

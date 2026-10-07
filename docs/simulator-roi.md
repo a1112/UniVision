@@ -11,7 +11,7 @@ Simulator 通过现有 `FeatureAccess` 和 C ABI 暴露 ROI，无须新增虚函
 | 节点 | 类型 | 范围与访问 |
 | --- | --- | --- |
 | `SensorWidth`、`SensorHeight` | integer，px | 只读，16384 |
-| `Width` | integer，px | 16 到 `SensorWidth - OffsetX`，步进 1 |
+| `Width` | integer，px | 1 到 `SensorWidth - OffsetX`，步进 1 |
 | `Height` | integer，px | 1 到 `SensorHeight - OffsetY`，步进 1 |
 | `OffsetX` | integer，px | 0 到 `SensorWidth - Width`，步进 1 |
 | `OffsetY` | integer，px | 0 到 `SensorHeight - Height`，步进 1 |
@@ -20,6 +20,10 @@ Simulator 通过现有 `FeatureAccess` 和 C ABI 暴露 ROI，无须新增虚函
 返回当前动态上限。采集时四个 ROI 节点报告 `read_only`，写入返回 `invalid_state`。
 传感器尺寸始终只读，写入返回 `access_denied`。类型不匹配或超出边界返回
 `invalid_argument`，失败写入不改变任何 ROI 参数。
+
+Simulator 的 Host Mono8 帧没有厂商 Producer 的尺寸对齐要求，宽高最小值均为 1。
+因此原有 8 × 8 / 64 字节工业 CLI 与录制 fixture 保持有效；实际 GenTL/厂商设备的
+尺寸范围和步进仍必须查询各设备节点，不能套用 Simulator 的范围。
 
 每次单节点写入都检查完整矩形。参数不是批量事务：放大图像前先减小相应偏移；
 增加偏移前先减小相应尺寸。调用方必须先停止采集，再按所需顺序更新四个节点。

@@ -53,7 +53,7 @@ void check_configuration() {
     CHECK(!camera);
     CHECK(camera.status().code() == univision::ErrorCode::invalid_argument);
   };
-  for (const auto width : {0U, 15U, 16385U, std::numeric_limits<std::uint32_t>::max()}) {
+  for (const auto width : {0U, 16385U, std::numeric_limits<std::uint32_t>::max()}) {
     configuration.width = width;
     rejected(configuration);
   }
@@ -71,7 +71,7 @@ void check_configuration() {
     rejected(configuration);
   }
   configuration = {};
-  configuration.width = 16;
+  configuration.width = 1;
   configuration.height = 1;
   configuration.frame_rate = 0.1;
   CHECK(make_camera(configuration));
@@ -79,6 +79,59 @@ void check_configuration() {
   configuration.height = 16384;
   configuration.frame_rate = 1000.0;
   CHECK(make_camera(configuration));
+}
+
+void check_small_roi_compatibility() {
+  // The existing industrial CLI and recording fixtures use 8x8 Mono8 frames.
+  // Simulator has no producer alignment requirement: every positive dimension
+  // must remain usable, with the same minimum reported by the ROI feature.
+  univision::SimulatorConfiguration configuration;
+  configuration.width = 8;
+  configuration.height = 8;
+  configuration.frame_rate = 1000.0;
+  auto camera = make_camera(configuration);
+  CHECK(camera->feature_info("Width").value().minimum == 1.0);
+  CHECK(camera->feature_info("Height").value().minimum == 1.0);
+  CHECK(camera->feature_info("OffsetX").value().maximum == 16376.0);
+  auto stream = std::move(camera->create_stream()).value();
+  CHECK(stream->start());
+  auto fixture = stream->wait_next(std::chrono::seconds(1));
+  CHECK(fixture.value().descriptor.width == 8);
+  CHECK(fixture.value().descriptor.height == 8);
+  CHECK(fixture.value().descriptor.stride == 8);
+  CHECK(fixture.value().buffer.size() == 64);
+  for (std::uint32_t y = 0; y < 8; ++y) {
+    for (std::uint32_t x = 0; x < 8; ++x) {
+      CHECK(std::to_integer<unsigned>(fixture.value().buffer.data()[y * 8 + x]) ==
+            x + y + 1);
+    }
+  }
+  CHECK(stream->stop());
+  for (const auto width : {1LL, 2LL, 8LL, 15LL}) {
+    CHECK(camera->write_feature("Width", static_cast<std::int64_t>(width)));
+    CHECK(read_integer(*camera, "Width") == width);
+  }
+  CHECK(camera->write_feature("Width", std::int64_t{1}));
+  CHECK(camera->write_feature("Height", std::int64_t{1}));
+  CHECK(camera->feature_info("OffsetX").value().maximum == 16383.0);
+  CHECK(camera->write_feature("OffsetX", std::int64_t{16383}));
+  CHECK(camera->write_feature("OffsetY", std::int64_t{16383}));
+  CHECK(camera->feature_info("Width").value().maximum == 1.0);
+  CHECK(camera->write_feature("Width", std::int64_t{2}).code() ==
+        univision::ErrorCode::invalid_argument);
+  CHECK(camera->write_feature("Width", std::int64_t{0}).code() ==
+        univision::ErrorCode::invalid_argument);
+  CHECK(camera->write_feature("OffsetX", std::int64_t{16384}).code() ==
+        univision::ErrorCode::invalid_argument);
+  CHECK(read_integer(*camera, "Width") == 1);
+  CHECK(read_integer(*camera, "OffsetX") == 16383);
+  CHECK(stream->start());
+  auto corner = stream->wait_next(std::chrono::seconds(1));
+  CHECK(corner.value().descriptor.width == 1);
+  CHECK(corner.value().descriptor.height == 1);
+  CHECK(corner.value().buffer.size() == 1);
+  CHECK(std::to_integer<unsigned>(corner.value().buffer.data()[0]) == 0);
+  CHECK(stream->stop());
 }
 
 void check_roi_bounds_and_pixels() {
@@ -269,6 +322,7 @@ void check_concurrent_start_and_write() {
 int main() {
   try {
     check_configuration();
+    check_small_roi_compatibility();
     check_roi_bounds_and_pixels();
     check_start_snapshot_and_restart();
     check_concurrent_start_and_write();
