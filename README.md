@@ -10,6 +10,7 @@ UniVision 是面向工业相机的跨厂商图像采集运行时。项目目标�
 - 稳定设备身份、Adapter 优先级和重复设备去重；
 - 显式 Buffer ownership、Memory Type、时间戳、元数据和流统计；
 - 带边界检查的 Simulator Adapter，可在无硬件环境完成端到端采集；
+- Simulator 的 `Width/Height/OffsetX/OffsetY` ROI 节点、动态范围、运行中写保护和合成裁剪；
 - 显式 `.cti` 路径加载、Producer/Interface/Device 枚举与错误归一化；
 - GenTL DataStream announce/queue/event/revoke 生命周期和零额外拷贝 Frame；
 - Remote Device Port 的本地 XML 加载，以及 `Int/Float/Enum/Bool/String/Command`
@@ -81,6 +82,7 @@ system.register_adapter(std::move(adapter).value());
 `uv_camera_get_feature_info`、类型化 get/set 与 `uv_camera_execute_command` 访问节点。
 
 完整示例见 `examples/list_devices.cpp`，纯 C 调用路径见 `tests/c_api_tests.c`。
+Simulator 的 ROI 参数和采集生命周期约定见 [Simulator ROI](docs/simulator-roi.md)。
 
 ## 架构原则
 

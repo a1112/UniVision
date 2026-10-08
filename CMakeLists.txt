@@ -94,6 +94,11 @@ if(UNIVISION_BUILD_TESTS)
   target_link_libraries(univision_core_tests PRIVATE UniVision::Core)
   add_test(NAME univision_core_tests COMMAND univision_core_tests)
 
+  add_executable(univision_simulator_roi_tests tests/simulator_roi_tests.cpp)
+  target_link_libraries(univision_simulator_roi_tests PRIVATE UniVision::Core)
+  univision_extension_warnings(univision_simulator_roi_tests)
+  add_test(NAME univision_simulator_roi_tests COMMAND univision_simulator_roi_tests)
+
   add_executable(univision_genapi_tests tests/genapi_tests.cpp)
   target_link_libraries(univision_genapi_tests PRIVATE UniVision::Core)
   target_include_directories(univision_genapi_tests PRIVATE src)
