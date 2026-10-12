@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "units": {},
+  "unmanaged": [
+    {
+      "name": "univision",
+      "reason": "Read-only native authority checked by scripts/check_version_sources.py. Native project0.3.0 and exported C++ constants must change together; preserve package/SOVERSION behavior and run CMake install/consumer tests. No generic bump bypasses this native contract.",
+      "paths": [
+        "CMakeLists.txt",
+        "include/univision/version.h"
+      ]
+    }
+  ],
+  "notes": [
+    "Existing version authorities and independent release units are preserved. This adoption does not assert that a manifest version has been released."
+  ]
+}

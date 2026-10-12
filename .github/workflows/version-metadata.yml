@@ -1,0 +1,31 @@
+name: Version metadata
+"on":
+  push:
+    branches: ["main", 'chore/version-management-20261012']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  version-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Check application and native version authorities
+        run: |
+          python scripts/version_manager.py check
+          python scripts/check_version_sources.py check
+      - name: Test previews and safety refusals offline
+        run: |
+          python -m unittest discover -s tests -p test_version_manager.py -v
+          python -m unittest discover -s tests -p test_version_sources.py -v
+      - name: Verify checks never modify tracked files
+        run: git diff --exit-code

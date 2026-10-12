@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "units": {
+    "univision": {
+      "canonical": {
+        "path": "CMakeLists.txt",
+        "kind": "cmake-project",
+        "project": "UniVision"
+      },
+      "mirrors": [
+        {
+          "path": "include/univision/version.h",
+          "kind": "cpp-version"
+        }
+      ],
+      "reason": "Native project0.3.0 and exported C++ constants must change together; preserve package/SOVERSION behavior and run CMake install/consumer tests. No generic bump bypasses this native contract."
+    }
+  },
+  "assertions": []
+}
