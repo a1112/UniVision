@@ -174,15 +174,20 @@ ApplicationWindow {
         function onFrameChanged() { histogram.requestPaint() }
     }
     header: Rectangle {
-        height: 76; color: "#151f2c"
+        height: window.width < 1200 ? 112 : 76; color: "#151f2c"
         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#2a384b" }
         Flickable {
+            id: headerScroll
             anchors.fill: parent
-            contentWidth: Math.max(width, 1000)
+            contentWidth: Math.max(width, 480)
+            ScrollBar.horizontal: ScrollBar {
+                policy: headerScroll.contentWidth > headerScroll.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                interactive: true
+            }
             contentHeight: height
             clip: true
             RowLayout {
-            x: 22; y: 0; width: Math.max(956, window.width - 44); height: 76; spacing: 16
+            x: 22; y: 0; width: Math.max(436, window.width - 44); height: window.width < 1200 ? 64 : 76; spacing: 16
             Rectangle {
                 width: 38; height: 38; radius: 10; color: "#246dd0"
                 Label { anchors.centerIn: parent; text: "◎"; font.pixelSize: 30; color: "white" }
@@ -192,24 +197,35 @@ ApplicationWindow {
                 Label { text: "相机调试"; font.pixelSize: 21; font.weight: Font.DemiBold }
                 Caption { text: "UNIVISION  /  CAMERA WORKSPACE"; font.pixelSize: 9; font.letterSpacing: 1 }
             }
-            Rectangle { Layout.leftMargin: 14; width: 1; height: 30; color: "#344154" }
-            Label { text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: camera.connected ? "#52d5a0" : window.muted }
+            Rectangle { visible: window.width >= 1200; Layout.leftMargin: 14; width: 1; height: 30; color: "#344154" }
+            Label { visible: window.width >= 1200; text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: camera.connected ? "#52d5a0" : window.muted }
             Item { Layout.fillWidth: true }
-            Caption { text: camera.dimensions + "   ·   " + (camera.running ? camera.fps.toFixed(1) : "0.0") + " FPS" }
-            Action { text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
-            Action { text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
-            Action { text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
+            Caption { visible: window.width >= 1200; text: camera.dimensions + "   ·   " + (camera.running ? camera.fps.toFixed(1) : "0.0") + " FPS" }
+            Action { visible: window.width >= 1200; text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
+            Action { visible: window.width >= 1200; text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
+            Action { visible: window.width >= 1200; text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
+        }
+        RowLayout {
+            visible: window.width < 1200
+            x: 22; y: 64; width: Math.max(436, window.width - 44); height: 48; spacing: 12
+            Action { Layout.fillWidth: true; text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
+            Action { Layout.fillWidth: true; text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
+            Action { Layout.fillWidth: true; text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
         }
         }
     }
     ScrollView {
+        id: workspaceScroll
+        objectName: "workspaceScroll"
         anchors.fill: parent
         clip: true
+        ScrollBar.horizontal.policy: contentWidth > availableWidth ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
         contentWidth: Math.max(1000, availableWidth)
         contentHeight: Math.max(580, availableHeight)
         ColumnLayout {
         width: Math.max(1000, window.width) - 32
-        height: Math.max(580, window.height - 76 - 40) - 32
+        height: Math.max(580, workspaceScroll.availableHeight) - 32
         x: 16; y: 16; spacing: 12
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 34; radius: 5
@@ -408,7 +424,7 @@ ApplicationWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         Action { text: "默认值"; enabled: camera.connected && !camera.running; onClicked: { exposure.value = 10000; gain.value = 0; rate.value = 30 } }
-                        Action { text: "应用参数"; Layout.fillWidth: true; primary: true; enabled: camera.connected && !camera.running; onClicked: camera.apply(exposure.value, gain.value, rate.value) }
+                        Action { objectName: "applyParametersButton"; text: "应用参数"; Layout.fillWidth: true; primary: true; enabled: camera.connected && !camera.running; onClicked: camera.apply(exposure.value, gain.value, rate.value) }
                     }
                 }
             }
