@@ -37,17 +37,35 @@ int main(int argc, char* argv[]) {
             auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().value(0));
             if (window) window->grabWindow().save(directory + "/interface.png");
         });
+        QTimer::singleShot(2400, &controller, [&] {
+            auto* root = engine.rootObjects().value(0);
+            auto* scroll = root ? root->findChild<QQuickItem*>("workspaceScroll") : nullptr;
+            auto* content = scroll ? scroll->property("contentItem").value<QQuickItem*>() : nullptr;
+            if (content) {
+                content->setProperty("contentX", qMax(0.0, scroll->property("contentWidth").toDouble() - scroll->property("availableWidth").toDouble()));
+                content->setProperty("contentY", qMax(0.0, scroll->property("contentHeight").toDouble() - scroll->property("availableHeight").toDouble()));
+            }
+        });
+        QTimer::singleShot(2600, &controller, [&, directory] {
+            auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().value(0));
+            if (window) window->grabWindow().save(directory + "/interface-parameters.png");
+        });
         QTimer::singleShot(2800, &controller, [&, directory] {
             double total = 0; for (const auto& bin : controller.histogram()) total += bin.toInt();
             auto* root = engine.rootObjects().value(0);
             auto* viewport = root ? root->findChild<QQuickItem*>("previewViewport") : nullptr;
-            const bool ok = !qmlWarnings && viewport && viewport->height() > 200 && viewport->width() > 300 &&
+            auto* applyButton = root ? root->findChild<QQuickItem*>("applyParametersButton") : nullptr;
+            auto* window = qobject_cast<QQuickWindow*>(root);
+            const QRectF buttonRect = applyButton ? applyButton->mapRectToScene(applyButton->boundingRect()) : QRectF();
+            const bool parametersReachable = window && applyButton && !buttonRect.isEmpty()
+                && QRectF(0, 0, window->width(), window->height()).contains(buttonRect);
+            const bool ok = parametersReachable && !qmlWarnings && viewport && viewport->height() > 200 && viewport->width() > 300 &&
                 controller.connected() && !controller.running() && controller.revision() > 10 &&
                 controller.parameters().value("ExposureTime").toDouble() == 5000 &&
                 controller.parameters().value("Gain").toDouble() == 6 &&
                 total == 640 * 480 && controller.pixel(10, 10) >= 0 &&
                 QFileInfo(directory + "/capture.png").size() > 0 && QFileInfo(directory + "/interface.png").size() > 0;
-            qInfo() << "GUI smoke:" << ok << "frames:" << controller.revision() << "histogram:" << total;
+            qInfo() << "GUI smoke:" << ok << "parameters reachable:" << parametersReachable << "frames:" << controller.revision() << "histogram:" << total;
             controller.disconnectCamera();
             QTimer::singleShot(200, &app, [&, ok] { app.exit(ok && !controller.connected() ? 0 : 2); });
         });

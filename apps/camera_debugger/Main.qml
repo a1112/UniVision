@@ -1,12 +1,87 @@
+import QtQuick.Window
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
 ApplicationWindow {
+    Component.onCompleted: { fitStartupGeometry(true); startupGeometryReady = true; }
+
+    // Screen dimensions are Qt logical pixels; do not multiply by devicePixelRatio.
+    property bool startupGeometryReady: false
+    Settings {
+        id: startupGeometry
+        category: "MainWindowGeometry"
+        // Explicit isolated profile for automated/synthetic window smoke tests.
+        location: {
+            var prefix = "--window-geometry-settings="
+            for (var i = 0; i < Qt.application.arguments.length; ++i) {
+                var argument = Qt.application.arguments[i]
+                if (argument.indexOf(prefix) === 0) return argument.substring(prefix.length)
+            }
+            return ""
+        }
+        property real savedX: -100000
+        property real savedY: -100000
+        property real savedWidth: 0
+        property real savedHeight: 0
+    }
+    function fitStartupGeometry(useSaved) {
+        var screens = Qt.application.screens
+        var target = screen
+        var px = useSaved ? startupGeometry.savedX : x
+        var py = useSaved ? startupGeometry.savedY : y
+        var pw = useSaved ? startupGeometry.savedWidth : width
+        var ph = useSaved ? startupGeometry.savedHeight : height
+        var saved = pw > 0 && ph > 0 && isFinite(px) && isFinite(py) && isFinite(pw) && isFinite(ph)
+        var bestArea = 0
+        for (var i = 0; i < screens.length; ++i) {
+            var candidate = screens[i]
+            var overlap = Math.max(0, Math.min(px + pw, candidate.virtualX + candidate.width) - Math.max(px, candidate.virtualX))
+                * Math.max(0, Math.min(py + ph, candidate.virtualY + candidate.height) - Math.max(py, candidate.virtualY))
+            if (overlap > bestArea) { target = candidate; bestArea = overlap }
+        }
+        if (!target) return
+        screen = target
+        // Reserve desktop edges and titlebar space in addition to the work-area limit.
+        var aw = Math.max(1, Math.min(target.width, target.desktopAvailableWidth) - 48)
+        var ah = Math.max(1, Math.min(target.height, target.desktopAvailableHeight) - 64)
+        var left = target.virtualX + (target.width - aw) / 2
+        var top = target.virtualY + (target.height - ah) / 2
+        minimumWidth = Math.min(800, aw, saved && pw >= 320 ? pw : 800)
+        minimumHeight = Math.min(520, ah, saved && ph >= 240 ? ph : 520)
+        if (useSaved && !saved) {
+            pw = Math.min(1100, Math.floor(aw * 0.82))
+            ph = Math.min(720, Math.floor(ah * 0.82))
+            px = left + (aw - pw) / 2
+            py = top + (ah - ph) / 2
+        }
+        if (saved && px >= target.virtualX && py >= target.virtualY
+                && px + pw <= target.virtualX + target.width
+                && py + ph <= target.virtualY + target.height
+                && pw <= target.desktopAvailableWidth && ph <= target.desktopAvailableHeight) {
+            width = pw; height = ph; x = px; y = py
+            return
+        }
+        width = Math.min(Math.max(pw, minimumWidth), aw)
+        height = Math.min(Math.max(ph, minimumHeight), ah)
+        x = Math.max(left, Math.min(px, left + aw - width))
+        y = Math.max(top, Math.min(py, top + ah - height))
+    }
+    onScreenChanged: if (startupGeometryReady && visibility === Window.Windowed) fitStartupGeometry(false)
+    onClosing: {
+        if (visibility === Window.Windowed) {
+            startupGeometry.savedX = x
+            startupGeometry.savedY = y
+            startupGeometry.savedWidth = width
+            startupGeometry.savedHeight = height
+        }
+    }
+
     id: window
-    width: 1520; height: 920
-    minimumWidth: 1120; minimumHeight: 720
+    width: 1100; height: 720
+    minimumWidth: 800; minimumHeight: 520
     visible: true
     title: "UniVision · 相机调试"
     color: "#0d131c"
@@ -99,10 +174,20 @@ ApplicationWindow {
         function onFrameChanged() { histogram.requestPaint() }
     }
     header: Rectangle {
-        height: 76; color: "#151f2c"
+        height: window.width < 1200 ? 112 : 76; color: "#151f2c"
         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#2a384b" }
-        RowLayout {
-            anchors.fill: parent; anchors.leftMargin: 22; anchors.rightMargin: 22; spacing: 16
+        Flickable {
+            id: headerScroll
+            anchors.fill: parent
+            contentWidth: Math.max(width, 480)
+            ScrollBar.horizontal: ScrollBar {
+                policy: headerScroll.contentWidth > headerScroll.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                interactive: true
+            }
+            contentHeight: height
+            clip: true
+            RowLayout {
+            x: 22; y: 0; width: Math.max(436, window.width - 44); height: window.width < 1200 ? 64 : 76; spacing: 16
             Rectangle {
                 width: 38; height: 38; radius: 10; color: "#246dd0"
                 Label { anchors.centerIn: parent; text: "◎"; font.pixelSize: 30; color: "white" }
@@ -112,17 +197,36 @@ ApplicationWindow {
                 Label { text: "相机调试"; font.pixelSize: 21; font.weight: Font.DemiBold }
                 Caption { text: "UNIVISION  /  CAMERA WORKSPACE"; font.pixelSize: 9; font.letterSpacing: 1 }
             }
-            Rectangle { Layout.leftMargin: 14; width: 1; height: 30; color: "#344154" }
-            Label { text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: camera.connected ? "#52d5a0" : window.muted }
+            Rectangle { visible: window.width >= 1200; Layout.leftMargin: 14; width: 1; height: 30; color: "#344154" }
+            Label { visible: window.width >= 1200; text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: camera.connected ? "#52d5a0" : window.muted }
             Item { Layout.fillWidth: true }
-            Caption { text: camera.dimensions + "   ·   " + (camera.running ? camera.fps.toFixed(1) : "0.0") + " FPS" }
-            Action { text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
-            Action { text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
-            Action { text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
+            Caption { visible: window.width >= 1200; text: camera.dimensions + "   ·   " + (camera.running ? camera.fps.toFixed(1) : "0.0") + " FPS" }
+            Action { visible: window.width >= 1200; text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
+            Action { visible: window.width >= 1200; text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
+            Action { visible: window.width >= 1200; text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
+        }
+        RowLayout {
+            visible: window.width < 1200
+            x: 22; y: 64; width: Math.max(436, window.width - 44); height: 48; spacing: 12
+            Action { Layout.fillWidth: true; text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
+            Action { Layout.fillWidth: true; text: "单帧抓取"; enabled: camera.connected && !camera.running; onClicked: camera.snap() }
+            Action { Layout.fillWidth: true; text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
+        }
         }
     }
-    ColumnLayout {
-        anchors.fill: parent; anchors.margins: 16; spacing: 12
+    ScrollView {
+        id: workspaceScroll
+        objectName: "workspaceScroll"
+        anchors.fill: parent
+        clip: true
+        ScrollBar.horizontal.policy: contentWidth > availableWidth ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        contentWidth: Math.max(1000, availableWidth)
+        contentHeight: Math.max(580, availableHeight)
+        ColumnLayout {
+        width: Math.max(1000, window.width) - 32
+        height: Math.max(580, workspaceScroll.availableHeight) - 32
+        x: 16; y: 16; spacing: 12
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 34; radius: 5
             color: camera.error.length ? "#452630" : "#172d3e"
@@ -320,11 +424,12 @@ ApplicationWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         Action { text: "默认值"; enabled: camera.connected && !camera.running; onClicked: { exposure.value = 10000; gain.value = 0; rate.value = 30 } }
-                        Action { text: "应用参数"; Layout.fillWidth: true; primary: true; enabled: camera.connected && !camera.running; onClicked: camera.apply(exposure.value, gain.value, rate.value) }
+                        Action { objectName: "applyParametersButton"; text: "应用参数"; Layout.fillWidth: true; primary: true; enabled: camera.connected && !camera.running; onClicked: camera.apply(exposure.value, gain.value, rate.value) }
                     }
                 }
             }
         }
+    }
     }
     footer: Rectangle {
         height: 34; color: "#121b27"
