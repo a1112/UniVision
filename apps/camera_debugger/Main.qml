@@ -6,7 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 
 ApplicationWindow {
-    Component.onCompleted: { fitStartupGeometry(true); startupGeometryReady = true; }
+    Component.onCompleted: { fitStartupGeometry(true); startupGeometryReady = true; rememberNormalGeometry(); }
 
     // Screen dimensions are Qt logical pixels; do not multiply by devicePixelRatio.
     property bool startupGeometryReady: false
@@ -69,15 +69,46 @@ ApplicationWindow {
         x = Math.max(left, Math.min(px, left + aw - width))
         y = Math.max(top, Math.min(py, top + ah - height))
     }
-    onScreenChanged: if (startupGeometryReady && visibility === Window.Windowed) fitStartupGeometry(false)
-    onClosing: {
-        if (visibility === Window.Windowed) {
-            startupGeometry.savedX = x
-            startupGeometry.savedY = y
-            startupGeometry.savedWidth = width
-            startupGeometry.savedHeight = height
+    function recoverOffscreenGeometry() {
+        if (!startupGeometryReady || visibility !== Window.Windowed) return
+        var screens = Qt.application.screens
+        // A normal drag may straddle displays. Only recover a rectangle that
+        // no longer intersects any display; do not clamp it at each crossing.
+        for (var i = 0; i < screens.length; ++i) {
+            var candidate = screens[i]
+            if (Math.min(x + width, candidate.virtualX + candidate.width) > Math.max(x, candidate.virtualX)
+                    && Math.min(y + height, candidate.virtualY + candidate.height) > Math.max(y, candidate.virtualY)) return
         }
+        if (screens.length > 0) fitStartupGeometry(false)
     }
+    property var lastNormalGeometry: null
+    function rememberNormalGeometry() {
+        if (!startupGeometryReady || visibility !== Window.Windowed
+                || !isFinite(x) || !isFinite(y) || !isFinite(width) || !isFinite(height)
+                || width <= 0 || height <= 0) return false
+        var previous = lastNormalGeometry
+        if (previous && previous.x === x && previous.y === y
+                && previous.width === width && previous.height === height) return false
+        // Capture in memory before a debounce timer can be overtaken by a
+        // maximize, minimize, fullscreen, or hide transition.
+        lastNormalGeometry = {x: x, y: y, width: width, height: height}
+        return true
+    }
+    function saveStartupGeometry() {
+        rememberNormalGeometry()
+        var normal = lastNormalGeometry
+        if (!normal) return
+        startupGeometry.savedX = normal.x
+        startupGeometry.savedY = normal.y
+        startupGeometry.savedWidth = normal.width
+        startupGeometry.savedHeight = normal.height
+    }
+    onScreenChanged: recoverOffscreenGeometry()
+    onClosing: saveStartupGeometry()
+    onXChanged: rememberNormalGeometry()
+    onYChanged: rememberNormalGeometry()
+    onWidthChanged: rememberNormalGeometry()
+    onHeightChanged: rememberNormalGeometry()
 
     id: window
     width: 1100; height: 720
