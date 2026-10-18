@@ -1,12 +1,32 @@
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2)
 qt_standard_project_setup(REQUIRES 6.5)
+add_library(univision_window_chrome STATIC windoweffects.cpp windoweffects.h effectspolicy.h macosutils.h)
+target_link_libraries(univision_window_chrome PUBLIC Qt6::Quick)
+target_include_directories(univision_window_chrome PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+if(APPLE)
+  enable_language(OBJCXX)
+  target_sources(univision_window_chrome PRIVATE macosutils.mm)
+  target_link_libraries(univision_window_chrome PRIVATE "-framework Cocoa")
+elseif(WIN32)
+  target_link_libraries(univision_window_chrome PRIVATE dwmapi)
+endif()
 qt_add_executable(univision_camera_debugger main.cpp camera_controller.cpp camera_controller.h)
 qt_add_qml_module(univision_camera_debugger
   URI UniVision.Debugger
   VERSION 1.0
-  QML_FILES Main.qml
+  QML_FILES Main.qml ChromeTitleBar.qml ResizeHandles.qml
 )
-target_link_libraries(univision_camera_debugger PRIVATE UniVision::Core Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(univision_camera_debugger PRIVATE UniVision::Core Qt6::Quick Qt6::QuickControls2 univision_window_chrome)
+if(UNIVISION_BUILD_TESTS)
+  # The parent enables tests after adding the optional GUI directory.
+  enable_testing()
+  find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+  qt_add_executable(univision_window_chrome_tests tests/window_chrome_tests.cpp)
+  target_link_libraries(univision_window_chrome_tests PRIVATE univision_window_chrome Qt6::QuickControls2 Qt6::Test)
+  target_compile_definitions(univision_window_chrome_tests PRIVATE UNIVISION_QML_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/Main.qml")
+  add_test(NAME univision_window_chrome_tests COMMAND univision_window_chrome_tests)
+  set_tests_properties(univision_window_chrome_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
+endif()
 if(MSVC)
   target_compile_options(univision_camera_debugger PRIVATE /utf-8)
 endif()

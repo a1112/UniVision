@@ -1,0 +1,52 @@
+UniVision window chrome acceptance
+
+Automated checks (no device or simulator)
+  cmake -S . -B /tmp/univision-chrome-build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt \
+    -DUNIVISION_BUILD_GUI=ON -DUNIVISION_BUILD_TESTS=ON -DUNIVISION_BUILD_EXAMPLES=OFF
+  cmake --build /tmp/univision-chrome-build --target univision_camera_debugger univision_window_chrome_tests -j2
+  QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ctest --test-dir /tmp/univision-chrome-build \
+    -R '^univision_window_chrome_tests$' --output-on-failure
+  node --test tests/window-geometry.test.cjs
+
+The Qt test loads production Main.qml with FakeCamera and isolated temporary
+settings. It does not construct CameraController, start the Simulator, open an
+SDK or access a device. Do not substitute the product's --smoke-test: that starts
+synthetic acquisition and is outside this window-only check.
+
+Source behavior
+  macOS retains invisible titled/closable/miniaturizable/resizable/full-size
+  NSWindow style bits. All visible title controls are QML, not native traffic
+  lights. Native frame resizing remains AppKit-owned. startSystemMove delegates
+  dragging/cancellation to Qt/AppKit. The custom title double click maximizes or
+  restores; OS titlebar double-click preference parity is not established.
+  On other platforms the window is frameless with eight startSystemResize zones.
+  Normal corner radius is 10; maximize/fullscreen uses 0. NSWindow outer shape and
+  shadow remain OS-managed, and content masks alone are not hardware validation.
+  macOS uses public NSVisualEffectView BehindWindow, never a blurred QML camera
+  image. Off / reduce transparency / high contrast use an opaque surface.
+  Windows tries supported DWM Desktop Acrylic then wallpaper-based Mica; if the
+  API or preference is unavailable the surface is opaque. Linux stays opaque.
+  Geometry handlers only update the existing in-memory normal rectangle. Existing
+  close-time geometry writes, camera cleanup and FileDialog behavior are retained.
+
+Native checks still required (not performed by the offscreen test)
+  Use a separately authorized, device-free Cocoa/Windows harness loading the same
+  QML and fake camera, with isolated settings. Do not change system display or
+  security settings, connect a real camera, or run the product acquisition smoke.
+  - Drag title, cancel/release outside, double click and compare OS preference.
+  - Eight resize directions, fast live resizing, corners and controls near edges.
+  - Tab/Space and platform close/quit/fullscreen shortcuts; VoiceOver names/focus.
+  - Close while idle/running fake state, save-dialog modal ownership and dismissal.
+  - Existing preview pan/ROI/text input/scrollbar behavior and file-drop handling.
+    No new file-drop handler is introduced by this change.
+  - Normal/maximized/fullscreen/minimized/restore and screen-scale transitions.
+  - Active/inactive material, effect toggle, accessibility notifications, rounded
+    pixels, alpha, shadow and resize targets. Observe current settings only unless
+    a separate request authorizes changing them.
+  - Record actual CPU/frame/timing only with native measurement tooling. The
+    offscreen wall-clock test duration is not a window-performance measurement.
+
+Cross-platform compilation/runtime, AppKit resize/blur pixels, accessibility
+notification delivery and hardware performance remain unverified. Offscreen font
+alias and propagateSizeHints warnings are test-plugin limitations, not native
+drag performance evidence.

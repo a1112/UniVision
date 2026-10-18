@@ -1,4 +1,5 @@
 #include "camera_controller.h"
+#include "windoweffects.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -16,14 +17,20 @@ int main(int argc, char* argv[]) {
     auto* provider = new FrameProvider;
     CameraController controller(provider);
     bool qmlWarnings = false;
+    WindowEffects windowEffects;
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app,
                      [&](const QList<QQmlError>&) { qmlWarnings = true; });
     engine.addImageProvider("frames", provider);
     engine.rootContext()->setContextProperty("camera", &controller);
+    engine.rootContext()->setContextProperty("windowEffects", &windowEffects);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("UniVision.Debugger", "Main");
+    auto* mainWindow = qobject_cast<QQuickWindow*>(engine.rootObjects().value(0));
+    if (!mainWindow) return 1;
+    windowEffects.setWindow(mainWindow);
+    mainWindow->show();
     if (app.arguments().contains("--smoke-test")) {
         // Exercise the actual threaded core bridge and render the real QML scene.
         const QString directory = qEnvironmentVariable("UNIVISION_SMOKE_DIR", ".");

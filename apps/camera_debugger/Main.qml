@@ -12,6 +12,7 @@ ApplicationWindow {
     property bool startupGeometryReady: false
     Settings {
         id: startupGeometry
+        objectName: "startupGeometrySettings"
         category: "MainWindowGeometry"
         // Explicit isolated profile for automated/synthetic window smoke tests.
         location: {
@@ -113,20 +114,48 @@ ApplicationWindow {
     id: window
     width: 1100; height: 720
     minimumWidth: 800; minimumHeight: 520
-    visible: true
+    // Native chrome and material are configured before the first show.
+    visible: false
+    flags: Qt.platform.os === "osx" ? Qt.Window : Qt.Window | Qt.FramelessWindowHint
+    onVisibilityChanged: rememberNormalGeometry()
     title: "UniVision · 相机调试"
-    color: "#0d131c"
+    color: "transparent"
+    SystemPalette { id: systemPalette }
+    readonly property bool highContrast: windowEffects.highContrast
+    readonly property color surface: highContrast ? systemPalette.window : "#151e2a"
+    readonly property color surfaceText: highContrast ? systemPalette.windowText : "#e5edf7"
+    readonly property color lineColor: highContrast ? systemPalette.windowText : "#29374a"
+    background: Rectangle {
+        objectName: "windowSurface"
+        radius: windowEffects.cornerRadius
+        color: window.highContrast ? systemPalette.window
+            : windowEffects.active ? "#b30d131c" : "#0d131c"
+    }
+    Shortcut { sequences: [StandardKey.Close]; onActivated: window.close() }
+    Shortcut { sequences: [StandardKey.Quit]; onActivated: window.close() }
+    Shortcut {
+        sequence: Qt.platform.os === "osx" ? "Ctrl+Meta+F" : "F11"
+        onActivated: titleBar.toggleFullscreen()
+    }
+    ResizeHandles {
+        objectName: "windowResizeHandles"
+        // Header's parent spans the full client area, including header/footer.
+        parent: window.header.parent
+        anchors.fill: parent
+        z: 10
+        targetWindow: window
+    }
     font.family: Qt.platform.os === "windows" ? "Microsoft YaHei UI" : "Noto Sans CJK SC"
     font.pixelSize: 13
-    palette.window: "#151e2a"
-    palette.windowText: "#e5edf7"
-    palette.base: "#101823"
-    palette.text: "#e5edf7"
-    palette.button: "#233144"
-    palette.buttonText: "#e5edf7"
-    palette.highlight: "#3885ff"
-    palette.highlightedText: "#ffffff"
-    property color muted: "#8a9bb2"
+    palette.window: surface
+    palette.windowText: surfaceText
+    palette.base: highContrast ? systemPalette.base : "#101823"
+    palette.text: highContrast ? systemPalette.text : "#e5edf7"
+    palette.button: highContrast ? systemPalette.button : "#233144"
+    palette.buttonText: highContrast ? systemPalette.buttonText : "#e5edf7"
+    palette.highlight: highContrast ? systemPalette.highlight : "#3885ff"
+    palette.highlightedText: highContrast ? systemPalette.highlightedText : "#ffffff"
+    property color muted: highContrast ? systemPalette.windowText : "#8a9bb2"
     property real zoom: 1
     property bool crosshair: true
     property bool roiEnabled: false
@@ -134,22 +163,25 @@ ApplicationWindow {
     property string pixelText: "移动鼠标查看像素"
 
     component Panel: Rectangle {
-        color: "#151e2a"; border.color: "#29374a"; radius: 8
+        color: window.surface; border.color: window.lineColor; radius: 8
     }
     component Caption: Label { color: window.muted; font.pixelSize: 12 }
     component Action: Button {
         id: action
         property bool primary: false
+        focusPolicy: Qt.StrongFocus
+        Accessible.name: text
         implicitHeight: 36
         leftPadding: 16; rightPadding: 16
         background: Rectangle {
             radius: 5
-            color: !action.enabled ? "#1a2432" : action.down ? "#235cb1" : action.primary ? "#2878ee" : action.hovered ? "#30435c" : "#223044"
-            border.color: action.primary ? "#468fff" : "#3a4b63"
+            color: window.highContrast ? (action.down ? systemPalette.highlight : systemPalette.button) : !action.enabled ? "#1a2432" : action.down ? "#235cb1" : action.primary ? "#2878ee" : action.hovered ? "#30435c" : "#223044"
+            border.color: action.visualFocus || window.highContrast ? systemPalette.highlight : action.primary ? "#468fff" : "#3a4b63"
+            border.width: action.visualFocus ? 2 : 1
             opacity: action.enabled ? 1 : 0.45
         }
         contentItem: Text {
-            text: action.text; font: action.font; color: action.enabled ? "#edf4ff" : "#627086"
+            text: action.text; font: action.font; color: window.highContrast ? (action.down ? systemPalette.highlightedText : systemPalette.buttonText) : action.enabled ? "#edf4ff" : "#627086"
             horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
         }
     }
@@ -204,8 +236,14 @@ ApplicationWindow {
         }
         function onFrameChanged() { histogram.requestPaint() }
     }
-    header: Rectangle {
-        height: window.width < 1200 ? 112 : 76; color: "#151f2c"
+    header: Column {
+        width: window.width
+        height: titleBar.height + acquisitionHeader.height
+        ChromeTitleBar { id: titleBar; width: parent.width; targetWindow: window }
+        Rectangle {
+        id: acquisitionHeader
+        width: parent.width
+        height: window.width < 1200 ? 112 : 76; color: window.highContrast ? systemPalette.window : "#151f2c"
         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#2a384b" }
         Flickable {
             id: headerScroll
@@ -229,7 +267,7 @@ ApplicationWindow {
                 Caption { text: "UNIVISION  /  CAMERA WORKSPACE"; font.pixelSize: 9; font.letterSpacing: 1 }
             }
             Rectangle { visible: window.width >= 1200; Layout.leftMargin: 14; width: 1; height: 30; color: "#344154" }
-            Label { visible: window.width >= 1200; text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: camera.connected ? "#52d5a0" : window.muted }
+            Label { visible: window.width >= 1200; text: "●  " + (camera.connected ? "模拟相机已连接" : "设备未连接"); color: window.highContrast ? systemPalette.windowText : camera.connected ? "#52d5a0" : window.muted }
             Item { Layout.fillWidth: true }
             Caption { visible: window.width >= 1200; text: camera.dimensions + "   ·   " + (camera.running ? camera.fps.toFixed(1) : "0.0") + " FPS" }
             Action { visible: window.width >= 1200; text: camera.running ? "■  停止采集" : "▶  开始采集"; primary: true; enabled: camera.connected; onClicked: camera.running ? camera.stop() : camera.start() }
@@ -244,6 +282,7 @@ ApplicationWindow {
             Action { Layout.fillWidth: true; text: "保存图像"; enabled: camera.revision > 0; onClicked: saveDialog.open() }
         }
         }
+    }
     }
     ScrollView {
         id: workspaceScroll
@@ -260,11 +299,11 @@ ApplicationWindow {
         x: 16; y: 16; spacing: 12
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 34; radius: 5
-            color: camera.error.length ? "#452630" : "#172d3e"
+            color: window.highContrast ? systemPalette.window : camera.error.length ? "#452630" : "#172d3e"
             Label {
                 anchors.fill: parent; anchors.leftMargin: 12
                 verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
-                color: camera.error.length ? "#ffb3ba" : "#8ebee3"
+                color: window.highContrast ? systemPalette.windowText : camera.error.length ? "#ffb3ba" : "#8ebee3"
                 text: camera.error.length ? camera.error : "模拟模式  ·  图像来自 UniVision Simulator；真实相机适配器尚未接入。"
             }
         }
@@ -280,12 +319,12 @@ ApplicationWindow {
                     }
                     Rectangle {
                         Layout.fillWidth: true; implicitHeight: 94; radius: 6
-                        color: "#1c304b"; border.color: "#3b79c8"
+                        color: window.highContrast ? systemPalette.window : "#1c304b"; border.color: window.lineColor
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 12; spacing: 6
                             Label { text: "▣   模拟相机 01"; font.weight: Font.DemiBold }
                             Caption { text: "     SIM-0001" }
-                            Label { text: "     ●  " + (camera.connected ? "已连接" : "可连接"); color: camera.connected ? "#51d19b" : "#8aa9ce"; font.pixelSize: 11 }
+                            Label { text: "     ●  " + (camera.connected ? "已连接" : "可连接"); color: window.highContrast ? systemPalette.windowText : camera.connected ? "#51d19b" : "#8aa9ce"; font.pixelSize: 11 }
                         }
                     }
                     Action { Layout.fillWidth: true; text: camera.connected ? "断开连接" : "连接设备"; onClicked: camera.connected ? camera.disconnectCamera() : camera.connectCamera() }
@@ -298,12 +337,12 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Caption { text: modelData[0] }
                             Item { Layout.fillWidth: true }
-                            Label { text: modelData[1]; font.pixelSize: 11; color: "#c4d1e3" }
+                            Label { text: modelData[1]; font.pixelSize: 11; color: window.highContrast ? systemPalette.windowText : "#c4d1e3" }
                         }
                     }
                     Item { Layout.fillHeight: true }
                     Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 94; radius: 5; color: "#101924"
+                        Layout.fillWidth: true; implicitHeight: 94; radius: 5; color: window.highContrast ? systemPalette.window : "#101924"
                         Caption { anchors.fill: parent; anchors.margins: 12; wrapMode: Text.WordWrap; text: "测试图像为动态灰度条纹。\n曝光和增益可读写，但不改变模拟图像。"; lineHeight: 1.4 }
                     }
                 }
@@ -316,7 +355,7 @@ ApplicationWindow {
                         anchors.fill: parent; anchors.margins: 12; spacing: 10
                         RowLayout {
                             Label { text: "实时预览"; font.weight: Font.DemiBold; Layout.fillWidth: true }
-                            Label { text: camera.running ? "● LIVE" : camera.revision > 0 ? "● 已暂停" : "● 待采集"; color: camera.running ? "#57d4aa" : window.muted; font.pixelSize: 11 }
+                            Label { text: camera.running ? "● LIVE" : camera.revision > 0 ? "● 已暂停" : "● 待采集"; color: window.highContrast ? systemPalette.windowText : camera.running ? "#57d4aa" : window.muted; font.pixelSize: 11 }
                         }
                         Rectangle {
                             id: viewport; objectName: "previewViewport"
@@ -347,6 +386,7 @@ ApplicationWindow {
                                         color: "#1242dce7"; border.color: "#42dce7"; border.width: 1
                                     }
                                     MouseArea {
+                                        objectName: "previewRoiArea"
                                         anchors.fill: parent; hoverEnabled: true
                                         acceptedButtons: window.roiEnabled ? Qt.LeftButton : Qt.NoButton
                                         property real startX: 0
@@ -369,7 +409,7 @@ ApplicationWindow {
                             Column {
                                 anchors.centerIn: parent; spacing: 12; visible: camera.revision === 0
                                 Label { anchors.horizontalCenter: parent.horizontalCenter; text: "◎"; font.pixelSize: 54; color: "#3a4e67" }
-                                Label { anchors.horizontalCenter: parent.horizontalCenter; text: "等待图像"; font.pixelSize: 18; color: "#a2b2c7" }
+                                Label { anchors.horizontalCenter: parent.horizontalCenter; text: "等待图像"; font.pixelSize: 18; color: window.highContrast ? systemPalette.windowText : "#a2b2c7" }
                                 Caption { text: "连接设备后，开始采集或抓取单帧" }
                             }
                         }
@@ -423,7 +463,7 @@ ApplicationWindow {
                             ListView {
                                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 6
                                 model: camera.logs
-                                delegate: Label { required property string modelData; width: ListView.view.width; text: modelData; color: "#a8b9d0"; font.pixelSize: 11; wrapMode: Text.WrapAnywhere }
+                                delegate: Label { required property string modelData; width: ListView.view.width; text: modelData; color: window.highContrast ? systemPalette.windowText : "#a8b9d0"; font.pixelSize: 11; wrapMode: Text.WrapAnywhere }
                                 ScrollBar.vertical: ScrollBar {}
                             }
                         }
@@ -441,7 +481,7 @@ ApplicationWindow {
                         contentWidth: availableWidth; clip: true
                         ColumnLayout {
                             width: parent.width; spacing: 18
-                            Parameter { id: exposure; Layout.fillWidth: true; label: "曝光时间"; unit: "μs"; minimum: 1; maximum: 1000000; value: 10000; enabled: camera.connected && !camera.running }
+                            Parameter { id: exposure; objectName: "exposureParameter"; Layout.fillWidth: true; label: "曝光时间"; unit: "μs"; minimum: 1; maximum: 1000000; value: 10000; enabled: camera.connected && !camera.running }
                             Parameter { id: gain; Layout.fillWidth: true; label: "增益"; unit: "dB"; minimum: 0; maximum: 24; step: 0.1; value: 0; enabled: camera.connected && !camera.running }
                             Parameter { id: rate; Layout.fillWidth: true; label: "帧率"; unit: "fps"; minimum: 0.1; maximum: 1000; step: 0.1; value: 30; enabled: camera.connected && !camera.running }
                             Rectangle { Layout.fillWidth: true; height: 1; color: "#29374a" }
@@ -463,13 +503,16 @@ ApplicationWindow {
     }
     }
     footer: Rectangle {
-        height: 34; color: "#121b27"
+        height: 34
+        radius: windowEffects.cornerRadius
+        color: window.highContrast ? systemPalette.window : "#121b27"
+        Rectangle { width: parent.width; height: parent.height / 2; color: parent.color }
         RowLayout {
             anchors.fill: parent; anchors.leftMargin: 20; anchors.rightMargin: 20
             Caption { text: "UniVision 0.1   /   Qt Quick" }
             Item { Layout.fillWidth: true }
             Caption { text: "已显示 " + camera.revision + " 帧     |     流丢帧 " + camera.dropped + "     |     Mono8     |     Simulator" }
-            Label { Layout.leftMargin: 16; text: "●  " + (camera.running ? "采集中" : "就绪"); color: "#55cfa1"; font.pixelSize: 11 }
+            Label { Layout.leftMargin: 16; text: "●  " + (camera.running ? "采集中" : "就绪"); color: window.highContrast ? systemPalette.windowText : "#55cfa1"; font.pixelSize: 11 }
         }
     }
 }
