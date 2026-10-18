@@ -1,4 +1,5 @@
 #include "macosutils.h"
+#include "effectspolicy.h"
 #include <QGuiApplication>
 #include <QMetaObject>
 #include <QPointer>
@@ -42,6 +43,26 @@ static NSWindow *nativeWindow(QWindow *window) {
     if (!window || QGuiApplication::platformName() != QStringLiteral("cocoa")) return nil;
     NSView *view = reinterpret_cast<NSView *>(window->winId());
     return view.window;
+}
+
+void performMacOSTitlebarDoubleClick(QWindow *window) {
+    NSWindow *native = nativeWindow(window);
+    if (!native) return;
+    // Read the user's system preference on the gesture; never write system defaults.
+    NSString *preference = [NSUserDefaults.standardUserDefaults stringForKey:@"AppleActionOnDoubleClick"];
+    const char *value = preference.UTF8String;
+    const bool fullscreen = (native.styleMask & NSWindowStyleMaskFullScreen)
+        || window->visibility() == QWindow::FullScreen;
+    const bool canMinimize = (native.styleMask & NSWindowStyleMaskMiniaturizable)
+        && [native standardWindowButton:NSWindowMiniaturizeButton].enabled;
+    const bool canZoom = (native.styleMask & NSWindowStyleMaskResizable)
+        && [native standardWindowButton:NSWindowZoomButton].enabled;
+    switch (WindowEffectsPolicy::titlebarDoubleClickAction(value ? value : "", fullscreen,
+                native.attachedSheet != nil, canMinimize, canZoom)) {
+    case WindowEffectsPolicy::TitlebarAction::Minimize: [native performMiniaturize:nil]; break;
+    case WindowEffectsPolicy::TitlebarAction::Zoom: [native performZoom:nil]; break;
+    case WindowEffectsPolicy::TitlebarAction::None: break;
+    }
 }
 
 void configureMacOSNativeWindow(QWindow *window) {

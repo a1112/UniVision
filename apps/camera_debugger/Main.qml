@@ -219,6 +219,7 @@ ApplicationWindow {
     }
     FileDialog {
         id: saveDialog
+        objectName: "saveImageDialog"
         title: "保存原始 Mono8 图像"
         fileMode: FileDialog.SaveFile
         nameFilters: ["PNG 图像 (*.png)"]
@@ -239,7 +240,7 @@ ApplicationWindow {
     header: Column {
         width: window.width
         height: titleBar.height + acquisitionHeader.height
-        ChromeTitleBar { id: titleBar; width: parent.width; targetWindow: window }
+        ChromeTitleBar { id: titleBar; width: parent.width; targetWindow: window; titleGesturesEnabled: !saveDialog.visible }
         Rectangle {
         id: acquisitionHeader
         width: parent.width

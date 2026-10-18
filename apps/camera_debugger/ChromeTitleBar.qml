@@ -5,12 +5,26 @@ import QtQuick.Controls
 Rectangle {
     id: bar
     property var targetWindow
+    property var effects: windowEffects
+    objectName: "windowChrome"
+    property bool titleGesturesEnabled: true
     height: 48
     radius: windowEffects.cornerRadius
     color: windowEffects.highContrast ? systemPalette.window
         : windowEffects.active ? "#b3151f2c" : "#151f2c"
     SystemPalette { id: systemPalette }
     Rectangle { y: parent.height / 2; width: parent.width; height: parent.height / 2; color: parent.color }
+
+    function titleDoubleClick() {
+        if (!enabled || !titleGesturesEnabled || targetWindow.visibility === Window.FullScreen) return
+        if (Qt.platform.os === "osx") {
+            if (effects) effects.titlebarDoubleClick()
+        } else toggleMaximize()
+    }
+    function startTitleDrag() {
+        if (!enabled || !titleGesturesEnabled || targetWindow.visibility === Window.FullScreen) return
+        targetWindow.startSystemMove()
+    }
 
     function toggleMaximize() {
         if (targetWindow.visibility === Window.Maximized || targetWindow.visibility === Window.FullScreen)
@@ -43,12 +57,12 @@ Rectangle {
         TapHandler {
             acceptedButtons: Qt.LeftButton
             gesturePolicy: TapHandler.ReleaseWithinBounds
-            onDoubleTapped: bar.toggleMaximize()
+            onDoubleTapped: bar.titleDoubleClick()
         }
         DragHandler {
             target: null
             acceptedButtons: Qt.LeftButton
-            onActiveChanged: if (active) bar.targetWindow.startSystemMove()
+            onActiveChanged: if (active) bar.startTitleDrag()
         }
     }
     component ChromeButton: Button {

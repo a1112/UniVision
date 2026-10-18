@@ -50,6 +50,15 @@ void WindowEffects::setWindow(QWindow *window)
 
 int WindowEffects::cornerRadius() const { return m_radius; }
 
+void WindowEffects::titlebarDoubleClick()
+{
+    if (!m_window || m_window->visibility() == QWindow::FullScreen || QGuiApplication::modalWindow())
+        return;
+#ifdef Q_OS_MACOS
+    performMacOSTitlebarDoubleClick(m_window);
+#endif
+}
+
 void WindowEffects::setEnabled(bool enabled)
 {
     if (m_enabled == enabled) return;

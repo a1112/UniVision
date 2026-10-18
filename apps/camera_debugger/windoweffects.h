@@ -20,6 +20,7 @@ public:
     bool highContrast() const { return m_highContrast; }
     int cornerRadius() const;
     Q_INVOKABLE void setEnabled(bool enabled);
+    Q_INVOKABLE void titlebarDoubleClick();
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void reconfigure();
 signals:
